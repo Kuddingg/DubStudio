@@ -31,7 +31,7 @@ def button(text: str = "", icon_name: str | None = None, variant: str | None = N
            tip: str | None = None, icon_color: str | None = None, icon_size: int = 16) -> QPushButton:
     b = QPushButton(text)
     if icon_name:
-        color = icon_color or {"primary": "#FFFFFF", "danger": C["danger_text"], "ghost": C["muted"]}.get(variant, C["text"])
+        color = icon_color or {"primary": C["on_primary"], "danger": C["danger_text"], "ghost": C["muted"]}.get(variant, C["text"])
         b.setIcon(icons.icon(icon_name, color, icon_size))
         b.setIconSize(QSize(icon_size, icon_size))
     if variant:
@@ -172,7 +172,7 @@ def dark_titlebar(widget: QWidget) -> None:
         import ctypes
         hwnd = int(widget.winId())
         from .. import theme
-        on = ctypes.c_int(1 if theme.MODE == "dark" else 0)
+        on = ctypes.c_int(0 if theme.MODE == "light" else 1)
         ctypes.windll.dwmapi.DwmSetWindowAttribute(hwnd, 20, ctypes.byref(on), ctypes.sizeof(on))
         bg = QColor(C["bg"])
         colorref = ctypes.c_int(bg.red() | (bg.green() << 8) | (bg.blue() << 16))

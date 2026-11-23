@@ -15,7 +15,8 @@ for pkg in ("demucs", "dora", "julius", "openunmix", "lameenc", "edge_tts", "fas
     hidden += collect_submodules(pkg)
 hidden += ["core.toolops", "core.voicematch", "core.metadata", "core.gpucheck", "core.asr", "core.separate",
            "core.updater"]
-datas += [(str(ROOT / "CHANGELOG.md"), "."),      # nội dung cửa sổ "Có gì mới"
+datas += [(str(ROOT / "assets" / "fonts"), "assets/fonts"),   # Be Vietnam Pro (OFL)
+          (str(ROOT / "CHANGELOG.md"), "."),      # nội dung cửa sổ "Có gì mới"
           (str(ROOT / "HUONG_DAN_SU_DUNG.md"), ".")]   # tab Hỗ trợ
 
 a = Analysis(
