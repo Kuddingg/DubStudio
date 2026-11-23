@@ -12,7 +12,7 @@ from .pages.script_page import ScriptPage
 from .pages.system_page import SystemPage
 from .paths import SETTINGS_FILE
 from .theme import C
-from .widgets.common import brand_mark, dark_titlebar, dot_pixmap, label
+from .widgets.common import GlassBackground, brand_mark, dark_titlebar, dot_pixmap, label
 
 PAGES = [
     ("captions", "Biên tập & lồng tiếng", "Thêm video, chọn vùng phụ đề và chạy toàn bộ quy trình"),
@@ -137,7 +137,7 @@ class MainWindow(QMainWindow):
         self.setMinimumSize(1240, 760)
         self.settings = Settings(SETTINGS_FILE)
 
-        root = QWidget()
+        root = GlassBackground()
         root.setObjectName("Root")
         self.setCentralWidget(root)
         h = QHBoxLayout(root)

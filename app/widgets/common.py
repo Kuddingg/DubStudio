@@ -3,9 +3,10 @@ from __future__ import annotations
 
 import sys
 
-from PySide6.QtCore import (Property, QEasingCurve, QPropertyAnimation, QRectF, QSize, Qt, QTimer,
-                            Signal)
-from PySide6.QtGui import QColor, QGuiApplication, QLinearGradient, QPainter, QPainterPath, QPixmap
+from PySide6.QtCore import (Property, QEasingCurve, QPointF, QPropertyAnimation, QRectF, QSize, Qt,
+                            QTimer, Signal)
+from PySide6.QtGui import (QColor, QGuiApplication, QLinearGradient, QPainter, QPainterPath, QPixmap,
+                           QRadialGradient)
 from PySide6.QtWidgets import (QAbstractButton, QAbstractSpinBox, QButtonGroup, QColorDialog,
                                QComboBox, QFrame, QGraphicsOpacityEffect, QGridLayout, QHBoxLayout,
                                QLabel, QListView, QPushButton, QSizePolicy, QSlider, QVBoxLayout,
@@ -50,9 +51,37 @@ def shrinkable(c: QComboBox) -> QComboBox:
     return c
 
 
+def round_popup(c: QComboBox) -> None:
+    """Danh sách xổ xuống bo tròn thật (bỏ khung vuông + bóng của Windows quanh góc bo)."""
+    w = c.view().window()
+    w.setWindowFlags(w.windowFlags() | Qt.FramelessWindowHint | Qt.NoDropShadowWindowHint)
+    w.setAttribute(Qt.WA_TranslucentBackground)
+
+
+class GlassBackground(QWidget):
+    """Nền cửa sổ: màu nền + vài quầng sáng mờ để các thẻ kính trong suốt phía trên trông 'bóng'."""
+
+    def paintEvent(self, e):
+        from .. import theme
+        p = QPainter(self)
+        p.fillRect(self.rect(), QColor(C["bg"]))
+        if theme.MODE not in theme.GLASS:
+            return
+        p.setRenderHint(QPainter.Antialiasing)
+        w, h = self.width(), self.height()
+        for key, cx, cy, rad in (("glow1", 0.88, 0.02, 0.62), ("glow2", 0.10, 1.0, 0.65), ("glow3", 0.45, 0.45, 0.45)):
+            r, g, b, a = (int(x) for x in C[key].split(","))
+            radius = max(w, h) * rad
+            grad = QRadialGradient(QPointF(w * cx, h * cy), radius)
+            grad.setColorAt(0, QColor(r, g, b, a))
+            grad.setColorAt(1, QColor(r, g, b, 0))
+            p.fillRect(self.rect(), grad)
+
+
 def combo(items: list[str], current: str | None = None) -> QComboBox:
     c = QComboBox()
     c.setView(QListView())  # để QSS item hoạt động trên Windows
+    round_popup(c)
     shrinkable(c)
     c.addItems(items)
     c.setCursor(Qt.PointingHandCursor)
@@ -172,7 +201,7 @@ def dark_titlebar(widget: QWidget) -> None:
         import ctypes
         hwnd = int(widget.winId())
         from .. import theme
-        on = ctypes.c_int(0 if theme.MODE == "light" else 1)
+        on = ctypes.c_int(1 if theme.is_dark() else 0)
         ctypes.windll.dwmapi.DwmSetWindowAttribute(hwnd, 20, ctypes.byref(on), ctypes.sizeof(on))
         bg = QColor(C["bg"])
         colorref = ctypes.c_int(bg.red() | (bg.green() << 8) | (bg.blue() << 16))

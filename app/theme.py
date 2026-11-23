@@ -125,14 +125,67 @@ WARM = {
     "tint": "255, 107, 26",
     "primary_h1": "#FF8236", "primary_h2": "#FFAA5E",
     "on_primary": "#FFFFFF",
-    "radius": "20px", "radius_sm": "14px",
+    "radius": "22px", "radius_sm": "14px",
+    # kính (glassmorphism): thẻ trong suốt nhẹ, sáng dần lên phía trên
+    "glass_top": "rgba(255, 255, 255, 18)", "glass_bot": "rgba(255, 255, 255, 6)",
+    "glass_border": "rgba(255, 255, 255, 24)", "glass_input": "rgba(0, 0, 0, 80)",
+    "glass_row": "rgba(255, 255, 255, 10)", "popup": "#1D1D21", "input_border": "rgba(255, 255, 255, 26)",
+    "glow1": "255, 107, 26, 70", "glow2": "168, 85, 247, 45", "glow3": "232, 212, 77, 22",
+}
+
+WARM_LIGHT = {
+    "bg": "#F6F1EB",
+    "surface": "#FFFFFF",
+    "card": "#FFFFFF",
+    "card2": "#F4EEE8",
+    "input": "#FFFFFF",
+    "border": "#E8DFD6",
+    "border2": "#D7CCC1",
+    "text": "#1E1813",
+    "muted": "#6F665D",
+    "dim": "#A2988E",
+    "accent": "#F25F0C",
+    "accent2": "#FF8A3D",
+    "cyan": "#C98A04",
+    "green": "#16A34A",
+    "red": "#E11D48",
+    "amber": "#D97706",
+    "sel_text": "#C2410C",
+    "btn_hover": "#FFFFFF",
+    "btn_hover_border": "#E2C9B5",
+    "btn_pressed": "#EFE6DD",
+    "danger_text": "#C8243F",
+    "scroll": "#D9CEC3",
+    "scroll_hover": "#BFB1A3",
+    "alt_row": "#FBF8F5",
+    "row_sel": "#FFEBDD",
+    "tool_hover": "#FFFFFF",
+    "console_bg": "#FBF8F5",
+    "console_text": "#3D352D",
+    "chip_ok": "#15803D",
+    "chip_run": "#C2410C",
+    "chip_err": "#C8243F",
+    "chip_warn": "#A15C07",
+    "chip_info": "#0E7490",
+    "switch_off": "#D8CDC2",
+    "tint": "242, 95, 12",
+    "primary_h1": "#FF7A2E", "primary_h2": "#FFA25C",
+    "on_primary": "#FFFFFF",
+    "radius": "22px", "radius_sm": "14px",
+    "glass_top": "rgba(255, 255, 255, 215)", "glass_bot": "rgba(255, 255, 255, 140)",
+    "glass_border": "rgba(255, 255, 255, 235)", "glass_input": "rgba(255, 255, 255, 175)",
+    "glass_row": "rgba(255, 255, 255, 150)", "popup": "#FFFFFF", "input_border": "rgba(140, 100, 70, 48)",
+    "glow1": "255, 150, 90, 95", "glow2": "190, 160, 255, 80", "glow3": "255, 214, 120, 70",
 }
 
 # Tên hiển thị trong tab Hệ thống → giá trị nội bộ
-MODES = {"Tối": "dark", "Sáng": "light", "Cam": "warm", "Theo Windows": "system"}
+MODES = {"Tối": "warm", "Sáng": "warm_light", "Theo Windows": "system",
+         "Tím tối (cổ điển)": "dark", "Tím sáng (cổ điển)": "light"}
+_ALIAS = {"Cam": "warm"}                 # tên cũ trong settings bản thử
+GLASS = ("warm", "warm_light")           # các chế độ dùng hiệu ứng kính
 
 C = dict(DARK)        # các module import C trực tiếp → luôn sửa tại chỗ, không gán lại
-MODE = "dark"         # chế độ đang dùng thật sự ("dark" / "light")
+MODE = "dark"         # chế độ đang dùng thật sự (dark / light / warm / warm_light)
 
 FONT = "Segoe UI"
 
@@ -279,15 +332,41 @@ QMenu::item:selected { background: rgba($tint, 60); }
 QMessageBox, QInputDialog, QColorDialog, QFileDialog { background: $card; }
 """)
 
-WARM_QSS = """
-#Sidebar { background: $bg; border-right: none; }
-#TopBar { border-bottom: none; }
-QPushButton#Nav { border-radius: 14px; }
-QPushButton#Nav:checked { background: $card2; color: $text; }
-QFrame#Pill, QFrame#PlanBox, QFrame#StatTile { border-radius: 16px; }
-QLineEdit, QSpinBox, QDoubleSpinBox, QComboBox, QPlainTextEdit, QTextEdit { border-radius: 12px; }
-QFrame#DropZone { border-radius: 18px; }
+GLASS_QSS = """
+#Sidebar, #TopBar { background: transparent; border: none; }
+QPushButton#Nav { border-radius: 14px; border: 1px solid transparent; }
+QPushButton#Nav:checked { color: $text; border: 1px solid $glass_border;
+    background: qlineargradient(x1:0, y1:0, x2:0, y2:1, stop:0 $glass_top, stop:1 $glass_bot); }
+QFrame#Card, QFrame#ToolCard { border: 1px solid $glass_border; border-radius: $radius;
+    background: qlineargradient(x1:0, y1:0, x2:0, y2:1, stop:0 $glass_top, stop:1 $glass_bot); }
+QFrame#ToolCard:hover { border-color: rgba($tint, 140); }
+QFrame#JobRow, QFrame#StatTile { background: $glass_row; border: 1px solid $glass_border; border-radius: $radius_sm; }
+QFrame#JobRow:hover { border-color: rgba($tint, 110); }
+QFrame#JobRow[selected="true"] { border: 1px solid $accent; background: rgba($tint, 34); }
+QFrame#Pill { background: $glass_row; border: 1px solid $glass_border; border-radius: 15px; }
+QFrame#PlanBox { background: $glass_row; border: 1px solid $glass_border; border-radius: 14px; }
+QLineEdit, QSpinBox, QDoubleSpinBox, QComboBox, QPlainTextEdit, QTextEdit {
+    background: $glass_input; border: 1px solid $input_border; border-radius: 13px; }
+QPlainTextEdit#Console { background: $glass_input; }
+QPushButton { background: $glass_row; border: 1px solid $glass_border; border-radius: $radius_sm; }
+QPushButton[variant="tool"] { background: $glass_input; border: 1px solid $input_border; }
+QPushButton#Seg { background: $glass_input; border: 1px solid $input_border; }
+QPushButton#Seg[pos="first"] { border-top-left-radius: 13px; border-bottom-left-radius: 13px; }
+QPushButton#Seg[pos="last"] { border-top-right-radius: 13px; border-bottom-right-radius: 13px; }
+QComboBox QAbstractItemView { background: $popup; border: 1px solid $border2; border-radius: 14px; padding: 6px; }
+QComboBox QAbstractItemView::item { min-height: 32px; padding: 0 12px; border-radius: 10px; }
+QMenu { background: $popup; border-radius: 14px; padding: 6px; }
+QMenu::item { padding: 7px 18px; border-radius: 10px; }
+QToolTip { background: $popup; border-radius: 10px; }
+QTableView, QTableWidget { background: $glass_input; border: 1px solid $glass_border; border-radius: 16px; }
+QHeaderView::section { background: $glass_row; }
+QFrame#DropZone { background: $glass_input; border-radius: 20px; }
+QCheckBox::indicator { border-radius: 6px; }
 """
+
+
+def is_dark() -> bool:
+    return MODE in ("dark", "warm")
 
 
 def _load_fonts() -> None:
@@ -308,25 +387,26 @@ def _pick_font() -> str:
 
 
 def resolve(mode: str) -> str:
-    """'dark' / 'light' / 'system' (hoặc tên hiển thị) → 'dark' / 'light'."""
-    mode = MODES.get(mode, mode)
+    """Tên hiển thị / giá trị nội bộ → bảng màu thật: dark / light / warm / warm_light."""
+    mode = MODES.get(mode, _ALIAS.get(mode, mode))
     if mode == "system":
         try:
             from PySide6.QtCore import Qt
             from PySide6.QtGui import QGuiApplication
-            return "light" if QGuiApplication.styleHints().colorScheme() == Qt.ColorScheme.Light else "dark"
+            light = QGuiApplication.styleHints().colorScheme() == Qt.ColorScheme.Light
+            return "warm_light" if light else "warm"
         except Exception:  # noqa: BLE001 - Qt cũ / không đọc được → tối
-            return "dark"
-    return mode if mode in ("light", "warm") else "dark"
+            return "warm"
+    return mode if mode in ("dark", "light", "warm", "warm_light") else "warm"
 
 
-def apply(app, mode: str = "dark") -> None:
+def apply(app, mode: str = "warm") -> None:
     global FONT, MODE
     from . import icons
 
     MODE = resolve(mode)
     C.clear()
-    C.update({"light": LIGHT, "warm": WARM}.get(MODE, DARK))
+    C.update({"light": LIGHT, "warm": WARM, "warm_light": WARM_LIGHT}.get(MODE, DARK))
     FONT = _pick_font()
     f = QFont(FONT, 10)
     f.setHintingPreference(QFont.PreferNoHinting)
@@ -335,6 +415,6 @@ def apply(app, mode: str = "dark") -> None:
                   check=icons.write_file("check", "#FFFFFF", 3.2),
                   chevron=icons.write_file("chevron-down", C["muted"], 2.4))
     qss = QSS.substitute(values)
-    if MODE == "warm":
-        qss += Template(WARM_QSS).substitute(values)
+    if MODE in GLASS:
+        qss += Template(GLASS_QSS).substitute(values)
     app.setStyleSheet(qss)
