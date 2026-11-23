@@ -20,7 +20,12 @@ OutputDir=..\build\installer
 OutputBaseFilename=DubStudio-Setup-{#AppVersion}
 SetupIconFile=dubstudio.ico
 UninstallDisplayIcon={app}\DubStudio.exe
+; /DFAST (chỉ để test): không nén → build bộ cài trong vài chục giây
+#ifdef FAST
+Compression=none
+#else
 Compression=lzma2/normal
+#endif
 SolidCompression=no
 DiskSpanning=no
 ArchitecturesAllowed=x64compatible
