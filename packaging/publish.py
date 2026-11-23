@@ -70,7 +70,21 @@ def main():
     if subprocess.run([gh, "release", "view", tag, "-R", repo], capture_output=True).returncode == 0:
         fail(f"Bản {tag} đã được đăng trên {repo}. Muốn đăng bản mới hãy tăng VERSION trong core/version.py.")
     print(f"   Đang tạo release {tag} trên github.com/{repo} và upload bộ cài (có thể mất vài phút)…")
-    r = subprocess.run([gh, "release", "create", tag, str(exe), str(OUT / "latest.json"), "-R", repo,
+    assets = [str(exe)]
+    portable = OUT / f"DubStudio-Portable-{VERSION}.zip"
+    if portable.exists():
+        assets.append(str(portable))
+        print(f"   Kèm bản portable: {portable.name} · {portable.stat().st_size / 1e6:.0f} MB")
+    assets.append(str(OUT / "latest.json"))
+    notes_file.write_text(
+        notes + "\n\n### Tải về\n"
+        f"- **{exe.name}**: bộ cài (khuyên dùng). Chạy là cài, tự báo và tự cài bản mới.\n"
+        + (f"- **{portable.name}**: bản portable, giải nén ra thư mục bất kỳ, bấm `DubStudio.exe` là chạy, "
+           "không cần cài. Dữ liệu lưu trong thư mục `data` cạnh app; có bản mới thì tải zip mới giải nén đè.\n"
+           if portable.exists() else "")
+        + "\nKhông cần cài Python. Windows báo \"Windows protected your PC\" → **More info** → **Run anyway**.\n",
+        encoding="utf-8")
+    r = subprocess.run([gh, "release", "create", tag, *assets, "-R", repo,
                         "--title", f"DubStudio {VERSION}", "--notes-file", str(notes_file), "--latest"])
     if r.returncode != 0:
         fail("Tạo release thất bại (xem thông báo ở trên).")

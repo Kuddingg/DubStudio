@@ -40,8 +40,23 @@ if errorlevel 1 (
     pause
     exit /b 1
 )
+
+echo [4/4] Tao ban portable (.zip, giai nen la chay, khong can cai)...
+(
+    echo DubStudio ban portable - du lieu luu trong thu muc data canh DubStudio.exe.
+    echo Xoa file nay thi app luu du lieu vao %%LOCALAPPDATA%%\DubStudio nhu ban cai dat.
+) > build\dist\DubStudio\portable.txt
+if exist "build\installer\DubStudio-Portable-%APPVER%.zip" del "build\installer\DubStudio-Portable-%APPVER%.zip"
+tar -a -c -f "build\installer\DubStudio-Portable-%APPVER%.zip" -C build\dist DubStudio
+set "ZIPERR=%errorlevel%"
+del build\dist\DubStudio\portable.txt
+if not "%ZIPERR%"=="0" (
+    echo Loi tao file zip portable
+    pause
+    exit /b 1
+)
 echo.
-echo Xong! Bo cai nam trong: build\installer\
+echo Xong! Bo cai va ban portable nam trong: build\installer\
 explorer build\installer
 exit /b 0
 

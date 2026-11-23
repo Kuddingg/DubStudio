@@ -132,9 +132,22 @@ def launch_installer(path: Path) -> None:
                      creationflags=flags, close_fds=True)
 
 
+def is_portable() -> bool:
+    from app.paths import PORTABLE
+    return PORTABLE
+
+
 def can_self_install() -> bool:
-    """Chỉ bản đã cài (.exe) mới tự cài đè được; chạy từ mã nguồn thì chỉ tải về."""
-    return FROZEN
+    """Chỉ bản đã cài bằng bộ cài mới tự cài đè được; bản portable / chạy từ mã nguồn thì không."""
+    return FROZEN and not is_portable()
+
+
+def release_page() -> str:
+    """Trang tải bản mới nhất (cho bản portable)."""
+    src = UPDATE_SOURCE.strip()
+    if src.startswith("github:"):
+        return f"https://github.com/{src.split(':', 1)[1].strip('/')}/releases/latest"
+    return src
 
 
 # ---------------------------------------------------------------------------- "Có gì mới"

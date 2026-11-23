@@ -76,20 +76,31 @@ class UpdateDialog(QDialog):
         self.status = label("", "Muted", wrap=True)
         v.addWidget(self.bar)
         v.addWidget(self.status)
-        if not updater.can_self_install():
+        if not updater.can_self_install() and not updater.is_portable():
             self.status.setText("Đang chạy từ mã nguồn: bấm Tải về để lưu bộ cài, rồi tự chạy nó.")
         row = QHBoxLayout()
         self.btn_skip = button("Bỏ qua bản này", None, "ghost")
         self.btn_skip.clicked.connect(lambda: self._close("skip"))
         self.btn_later = button("Để sau", None, "tool")
         self.btn_later.clicked.connect(lambda: self._close("later"))
-        self.btn_go = button("Cập nhật ngay" if updater.can_self_install() else "Tải về", "download", "primary")
-        self.btn_go.clicked.connect(self._start)
+        if updater.is_portable():
+            # bản portable: không có bộ cài để cài đè → mở trang tải bản .zip mới
+            self.status.setText("Bản portable: tải file DubStudio-Portable mới, giải nén đè lên thư mục hiện tại "
+                                "(giữ nguyên thư mục data để không mất cấu hình).")
+            self.btn_go = button("Mở trang tải bản mới", "download", "primary")
+            self.btn_go.clicked.connect(self._open_page)
+        else:
+            self.btn_go = button("Cập nhật ngay" if updater.can_self_install() else "Tải về", "download", "primary")
+            self.btn_go.clicked.connect(self._start)
         row.addWidget(self.btn_skip)
         row.addStretch()
         row.addWidget(self.btn_later)
         row.addWidget(self.btn_go)
         v.addLayout(row)
+
+    def _open_page(self):
+        QDesktopServices.openUrl(QUrl(updater.release_page()))
+        self._close("later")
 
     def _close(self, action: str):
         if self.worker and self.worker.isRunning():
