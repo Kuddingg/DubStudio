@@ -5,3 +5,4 @@ data/
 test_videos/
 build/
 packaging/dubstudio.png
+.vscode/
