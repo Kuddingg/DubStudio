@@ -209,16 +209,23 @@ class HelpPage(QScrollArea):
 
         h = QHBoxLayout()
         h.setSpacing(16)
-        sc = Card("Phím tắt & thao tác", "keyboard", C["cyan"])
-        g = QGridLayout()
-        g.setHorizontalSpacing(16)
-        g.setVerticalSpacing(10)
-        for i, (k, d) in enumerate(SHORTCUTS):
-            g.addWidget(chip(k, "info"), i, 0, Qt.AlignLeft)
-            g.addWidget(label(d, "Muted"), i, 1)
-        g.setColumnStretch(1, 1)
-        sc.add(g)
-        h.addWidget(sc, 1)
+        guide = Card("Hướng dẫn sử dụng", "book", C["cyan"])
+        from PySide6.QtWidgets import QApplication, QTextBrowser
+
+        from core.runtime import RES_DIR
+        view = QTextBrowser()
+        view.setOpenExternalLinks(True)
+        view.setStyleSheet(f"QTextBrowser {{ background: transparent; border: none; color: {C['text']}; "
+                           f"font-family: '{QApplication.font().family()}'; font-size: 13px; }}")
+        try:
+            md = (RES_DIR / "HUONG_DAN_SU_DUNG.md").read_text("utf-8")
+            md = md.split("\n", 1)[1] if md.startswith("# ") else md      # bỏ tiêu đề lớn (đã có tên card)
+        except OSError:
+            md = "Không tìm thấy file HUONG_DAN_SU_DUNG.md."
+        view.setMarkdown(md)
+        view.setMinimumHeight(520)
+        guide.add(view, 1)
+        h.addWidget(guide, 2)
 
         about = Card("Về ứng dụng", "help", C["muted"])
         about.add(label("DubStudio", "H2"))
@@ -231,8 +238,17 @@ class HelpPage(QScrollArea):
         from ..paths import DATA
         about.add(label(f"Dữ liệu (cấu hình, project, model AI): {DATA}" + (" · bản cài đặt" if FROZEN else ""),
                         "Dim", wrap=True))
+        about.add(label("Phím tắt", "Value"))
+        g = QGridLayout()
+        g.setHorizontalSpacing(12)
+        g.setVerticalSpacing(8)
+        for i, (k, d) in enumerate(SHORTCUTS):
+            g.addWidget(chip(k, "info"), i, 0, Qt.AlignLeft)
+            g.addWidget(label(d, "Muted", wrap=True), i, 1)
+        g.setColumnStretch(1, 1)
+        about.add(g)
         about.body.addStretch()
         h.addWidget(about, 1)
-        v.addLayout(h)
+        v.addLayout(h, 1)
         v.addStretch()
         self.setWidget(w)
