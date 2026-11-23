@@ -13,7 +13,9 @@ for pkg in ("rapidocr_onnxruntime", "demucs", "faster_whisper", "edge_tts", "cer
 for pkg in ("demucs", "dora", "julius", "openunmix", "lameenc", "edge_tts", "faster_whisper", "ctranslate2",
             "soundfile", "rapidocr_onnxruntime", "yt_dlp"):
     hidden += collect_submodules(pkg)
-hidden += ["core.toolops", "core.voicematch", "core.metadata", "core.gpucheck", "core.asr", "core.separate"]
+hidden += ["core.toolops", "core.voicematch", "core.metadata", "core.gpucheck", "core.asr", "core.separate",
+           "core.updater"]
+datas += [(str(ROOT / "CHANGELOG.md"), ".")]     # nội dung cửa sổ "Có gì mới"
 
 a = Analysis(
     [str(ROOT / "main.py")],

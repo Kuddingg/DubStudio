@@ -7,6 +7,8 @@ from pathlib import Path
 
 FROZEN = bool(getattr(sys, "frozen", False))
 APP_DIR = Path(sys.executable).parent if FROZEN else Path(__file__).resolve().parent.parent
+# Thư mục chứa file đi kèm (CHANGELOG.md...): bản .exe nằm trong _internal (sys._MEIPASS)
+RES_DIR = Path(getattr(sys, "_MEIPASS", APP_DIR)) if FROZEN else APP_DIR
 
 
 def python_cmd() -> list[str]:

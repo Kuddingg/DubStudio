@@ -47,6 +47,7 @@ class StatTile(QFrame):
 class SystemPage(QWidget):
     changed = Signal()
     recommend = Signal(dict)   # gợi ý cấu hình từ Kiểm tra GPU: {"encoder", "device"}
+    checkUpdate = Signal()     # người dùng bấm "Kiểm tra cập nhật"
 
     def __init__(self):
         super().__init__()
@@ -79,7 +80,11 @@ class SystemPage(QWidget):
         v.addLayout(row15)
         row2 = QHBoxLayout()
         row2.setSpacing(16)
-        row2.addWidget(self._layers_card(), 1)
+        left = QVBoxLayout()
+        left.setSpacing(16)
+        left.addWidget(self._update_card())
+        left.addWidget(self._layers_card(), 1)
+        row2.addLayout(left, 1)
         row2.addWidget(self._log_card(), 1)
         v.addLayout(row2)
         v.addStretch()
@@ -172,6 +177,20 @@ class SystemPage(QWidget):
         edit.textChanged.connect(refresh)
         refresh()
         return box
+
+    def _update_card(self):
+        from core import updater
+        from core.version import VERSION
+        c = Card("Cập nhật phần mềm", "download", C["accent"])
+        src = updater.UPDATE_SOURCE.replace("github:", "GitHub: ") if updater.configured() else "chưa cấu hình (core/version.py)"
+        c.add(label(f"Phiên bản đang dùng: {VERSION} · Nguồn cập nhật: {src}", "Muted", wrap=True))
+        r = QHBoxLayout()
+        r.addWidget(self.binder.bind("auto_update", LabeledToggle("Tự kiểm tra khi mở app", True)), 1)
+        b = button("Kiểm tra cập nhật", "refresh", "tool")
+        b.clicked.connect(self.checkUpdate)
+        r.addWidget(b)
+        c.add(r)
+        return c
 
     def _gpu_card(self):
         c = Card("Kiểm tra GPU & tăng tốc", "zap", C["green"])

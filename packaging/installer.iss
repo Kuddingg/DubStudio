@@ -26,6 +26,9 @@ DiskSpanning=no
 ArchitecturesAllowed=x64compatible
 ArchitecturesInstallIn64BitMode=x64compatible
 WizardStyle=modern
+; Cập nhật từ trong app: bộ cài tự đóng DubStudio đang chạy để thay file
+CloseApplications=yes
+RestartApplications=no
 
 [Languages]
 Name: "en"; MessagesFile: "compiler:Default.isl"
@@ -43,3 +46,5 @@ Name: "{autodesktop}\{#AppName}"; Filename: "{app}\DubStudio.exe"; Tasks: deskto
 
 [Run]
 Filename: "{app}\DubStudio.exe"; Description: "Mở {#AppName}"; Flags: nowait postinstall skipifsilent
+; Cập nhật từ trong app (chạy bộ cài với /SILENT) → cài xong tự mở lại app
+Filename: "{app}\DubStudio.exe"; Flags: nowait; Check: WizardSilent

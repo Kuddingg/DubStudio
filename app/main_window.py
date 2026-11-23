@@ -178,9 +178,70 @@ class MainWindow(QMainWindow):
         self.editor.configChanged.connect(self._save_timer.start)
         self.system.changed.connect(self._save_timer.start)
         self.system.recommend.connect(self._apply_recommend)
+        self.system.checkUpdate.connect(lambda: self.check_update(manual=True))
+        self._upd = self.settings.section("update")            # {"last_seen", "skip"}
         self._go(0)
         log("DubStudio đã sẵn sàng", "ok")
         QTimer.singleShot(800, self._warmup)
+        QTimer.singleShot(600, self._whats_new)
+        if self.system.values().get("auto_update", True):
+            QTimer.singleShot(4000, lambda: self.check_update(manual=False))
+
+    # ---------------------------------------------------------------- cập nhật
+    def _whats_new(self):
+        """Lần đầu mở sau khi cập nhật lên bản mới → hiện 'Có gì mới'."""
+        from core import updater
+        from core.version import VERSION
+        last = self._upd.get("last_seen")
+        if last and updater.is_newer(VERSION, last):
+            from .dialogs.update_dialog import WhatsNewDialog
+            WhatsNewDialog(VERSION, updater.changelog_notes(VERSION), self).exec()
+        if last != VERSION:
+            self._upd["last_seen"] = VERSION
+            self.save_settings()
+
+    def check_update(self, manual: bool = False):
+        from core import updater
+        from core.tasks import run_async
+
+        from .widgets.common import toast
+        if not updater.configured():
+            if manual:
+                toast(self, "Chưa cấu hình nguồn cập nhật (UPDATE_SOURCE trong core/version.py)", "warn")
+            return
+        if manual:
+            toast(self, "Đang kiểm tra bản mới…", "info")
+
+        def done(info):
+            if not info:
+                if manual:
+                    toast(self, "Bạn đang dùng bản mới nhất", "ok")
+                return
+            if not manual and info["version"] == self._upd.get("skip"):
+                return                                     # người dùng đã chọn bỏ qua bản này
+            log(f"Có bản mới {info['version']}", "ok")
+            self.show_update(info)
+
+        def failed(err):
+            log(f"Kiểm tra cập nhật: {err}", "warn")
+            if manual:
+                toast(self, err, "err")
+
+        run_async(updater.check, on_done=done, on_error=failed)
+
+    def show_update(self, info: dict):
+        from PySide6.QtWidgets import QApplication
+
+        from .dialogs.update_dialog import UpdateDialog
+        dlg = UpdateDialog(info, self)
+        dlg.exec()
+        if dlg.result_action == "skip":
+            self._upd["skip"] = info["version"]
+            self.save_settings()
+        elif dlg.result_action == "installing":
+            self._quitting_for_update = True
+            self.close()                                   # lưu cấu hình rồi thoát để bộ cài thay file
+            QApplication.quit()
 
     def _warmup(self):
         """Sau khi cửa sổ hiện: nạp sẵn thư viện TTS ở nền rồi tạo sẵn câu đọc thử → bấm ▶ phát ngay."""
@@ -209,6 +270,8 @@ class MainWindow(QMainWindow):
         self.settings.set_section("config", self.editor.config.values())
         from core import secret
         self.settings.set_section("system", secret.encrypt_section(self.system.values()))   # API key mã hóa DPAPI
+        if hasattr(self, "_upd"):
+            self.settings.set_section("update", self._upd)
         self.settings.save()
 
     def showEvent(self, e):
