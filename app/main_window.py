@@ -75,7 +75,8 @@ class Sidebar(QFrame):
         ic = QLabel()
         ic.setPixmap(icons.pixmap("sparkles", C["amber"], 14))
         top.addWidget(ic)
-        top.addWidget(label("DubStudio 0.2.0", "Value"))
+        from core.version import VERSION
+        top.addWidget(label(f"DubStudio {VERSION}", "Value"))
         top.addStretch()
         pv.addLayout(top)
         pv.addWidget(label("OCR · ASR · Dịch AI · Lồng tiếng", "Dim"))

@@ -2,7 +2,10 @@
 ; Cài cho người dùng hiện tại (không cần quyền admin); dữ liệu người dùng nằm ở %LOCALAPPDATA%\DubStudio.
 
 #define AppName "DubStudio"
-#define AppVersion "0.2.0"
+; Số phiên bản do build.bat truyền vào (/DAppVersion=...) từ core\version.py
+#ifndef AppVersion
+  #define AppVersion "0.0.0"
+#endif
 
 [Setup]
 AppId={{6D2B6F0A-6E8B-4C3E-9C2B-2F7C1D9E4A11}

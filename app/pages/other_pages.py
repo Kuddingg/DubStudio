@@ -223,7 +223,8 @@ class HelpPage(QScrollArea):
         about = Card("Về ứng dụng", "help", C["muted"])
         about.add(label("DubStudio", "H2"))
         about.add(label("Dịch & lồng tiếng video Trung → Việt bằng AI.", "Muted", wrap=True))
-        about.add(label("Phiên bản 0.2.0. Trích phụ đề (OCR / nhận giọng nói), dịch bằng Gemini hoặc Ollama, "
+        from core.version import VERSION
+        about.add(label(f"Phiên bản {VERSION}. Trích phụ đề (OCR / nhận giọng nói), dịch bằng Gemini hoặc Ollama, "
                         "tách nhạc nền (Demucs), lồng tiếng (Edge TTS), căn khớp thời gian và xuất video (FFmpeg).",
                         "Dim", wrap=True))
         from core.runtime import FROZEN

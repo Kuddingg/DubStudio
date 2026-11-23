@@ -32,7 +32,9 @@ if not exist "%ISCC%" (
     pause
     exit /b 0
 )
-"%ISCC%" /Q packaging\installer.iss
+for /f "delims=" %%V in ('.venv\Scripts\python.exe -c "from core.version import VERSION; print(VERSION)"') do set "APPVER=%%V"
+echo     Phien ban: %APPVER%
+"%ISCC%" /Q /DAppVersion=%APPVER% packaging\installer.iss
 if errorlevel 1 (
     echo Loi tao bo cai
     pause
