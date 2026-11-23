@@ -6,4 +6,4 @@ VERSION = "0.2.0"
 #   "github:TEN_TAI_KHOAN/TEN_REPO"           → GitHub Releases (repo phải để Public để người dùng tải được)
 #   "https://.../latest.json"                  → file manifest tự đặt ở bất kỳ đâu (publish.bat tạo sẵn file này)
 # Để trống = tắt tính năng tự cập nhật.
-UPDATE_SOURCE = ""
+UPDATE_SOURCE = "github:Kuddingg/DubStudio"
