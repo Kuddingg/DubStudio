@@ -31,7 +31,7 @@ def button(text: str = "", icon_name: str | None = None, variant: str | None = N
            tip: str | None = None, icon_color: str | None = None, icon_size: int = 16) -> QPushButton:
     b = QPushButton(text)
     if icon_name:
-        color = icon_color or {"primary": "#FFFFFF", "danger": "#FF8FA3", "ghost": C["muted"]}.get(variant, C["text"])
+        color = icon_color or {"primary": "#FFFFFF", "danger": C["danger_text"], "ghost": C["muted"]}.get(variant, C["text"])
         b.setIcon(icons.icon(icon_name, color, icon_size))
         b.setIconSize(QSize(icon_size, icon_size))
     if variant:
@@ -165,13 +165,14 @@ def brand_mark(size: int = 34) -> QPixmap:
 
 
 def dark_titlebar(widget: QWidget) -> None:
-    """Thanh tiêu đề Windows màu tối, khớp với nền app."""
+    """Thanh tiêu đề Windows cùng màu nền app (tối hoặc sáng)."""
     if sys.platform != "win32":
         return
     try:
         import ctypes
         hwnd = int(widget.winId())
-        on = ctypes.c_int(1)
+        from .. import theme
+        on = ctypes.c_int(1 if theme.MODE == "dark" else 0)
         ctypes.windll.dwmapi.DwmSetWindowAttribute(hwnd, 20, ctypes.byref(on), ctypes.sizeof(on))
         bg = QColor(C["bg"])
         colorref = ctypes.c_int(bg.red() | (bg.green() << 8) | (bg.blue() << 16))
@@ -234,7 +235,7 @@ class ToggleSwitch(QAbstractButton):
         p = QPainter(self)
         p.setRenderHint(QPainter.Antialiasing)
         r = QRectF(0.5, 0.5, self.width() - 1, self.height() - 1)
-        track = mix("#2A3142", C["accent"], self._offset)
+        track = mix(C["switch_off"], C["accent"], self._offset)
         if not self.isEnabled():
             track.setAlpha(110)
         p.setPen(Qt.NoPen)

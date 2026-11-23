@@ -86,7 +86,7 @@ class Sidebar(QFrame):
     def select(self, i: int):
         self.group.button(i).setChecked(True)
         for k, (b, ic) in enumerate(self.btns):
-            b.setIcon(icons.icon(ic, "#FFFFFF" if k == i else C["muted"], 18))
+            b.setIcon(icons.icon(ic, C["sel_text"] if k == i else C["muted"], 18))
         self.changed.emit(i)
 
 
@@ -179,6 +179,7 @@ class MainWindow(QMainWindow):
         self.system.changed.connect(self._save_timer.start)
         self.system.recommend.connect(self._apply_recommend)
         self.system.checkUpdate.connect(lambda: self.check_update(manual=True))
+        self.system.themeChanged.connect(self._theme_changed)
         self._upd = self.settings.section("update")            # {"last_seen", "skip"}
         self._go(0)
         log("DubStudio đã sẵn sàng", "ok")
@@ -265,6 +266,24 @@ class MainWindow(QMainWindow):
     def _go(self, i: int):
         self.stack.setCurrentIndex(i)
         self.topbar.set_page(i)
+
+    def _theme_changed(self, name: str):
+        """Đổi Tối / Sáng: lưu lại, hỏi mở lại app để áp dụng toàn bộ màu (icon, khung vẽ…)."""
+        from . import theme
+        self.save_settings()
+        if theme.resolve(name) == theme.MODE:
+            return
+        if QMessageBox.question(self, "Đổi giao diện",
+                                f"Chuyển sang chế độ \"{name}\" cần mở lại app.\nMở lại ngay bây giờ?") != QMessageBox.Yes:
+            return
+        if not self.close():                       # đang xử lý video mà người dùng chọn không thoát
+            return
+        import sys
+        from PySide6.QtCore import QProcess
+        from PySide6.QtWidgets import QApplication
+        args = sys.argv[1:] if getattr(sys, "frozen", False) else sys.argv
+        QProcess.startDetached(sys.executable, args)
+        QApplication.quit()
 
     def save_settings(self):
         self.settings.set_section("config", self.editor.config.values())

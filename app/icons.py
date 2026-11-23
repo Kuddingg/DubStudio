@@ -56,7 +56,10 @@ _P = {
 }
 
 
-def _svg(name: str, color: str, stroke: float = 2.0) -> str:
+def _svg(name: str, color: str | None, stroke: float = 2.0) -> str:
+    if not color:                                # mặc định = màu chữ của chế độ đang dùng
+        from .theme import C
+        color = C["text"]
     body = _P[name].replace("{c}", color)
     return (
         f'<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" '
@@ -69,7 +72,7 @@ def _dpr() -> float:
     return s.devicePixelRatio() if s else 1.0
 
 
-def pixmap(name: str, color: str = "#E8EAF1", size: int = 18, stroke: float = 2.0) -> QPixmap:
+def pixmap(name: str, color: str | None = None, size: int = 18, stroke: float = 2.0) -> QPixmap:
     dpr = _dpr()
     px = max(1, int(size * dpr))
     pm = QPixmap(px, px)
@@ -82,7 +85,7 @@ def pixmap(name: str, color: str = "#E8EAF1", size: int = 18, stroke: float = 2.
     return pm
 
 
-def icon(name: str, color: str = "#E8EAF1", size: int = 18) -> QIcon:
+def icon(name: str, color: str | None = None, size: int = 18) -> QIcon:
     ic = QIcon()
     ic.addPixmap(pixmap(name, color, size))
     return ic

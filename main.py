@@ -14,7 +14,9 @@ def main():
     crash.install(VERSION)                       # ghi lỗi bất ngờ ra file + báo người dùng
     app = QApplication(sys.argv)
     app.setApplicationName("DubStudio")
-    theme.apply(app)
+    from app.paths import SETTINGS_FILE
+    from core.settings import Settings
+    theme.apply(app, Settings(SETTINGS_FILE).section("system").get("theme", "Tối"))
     win = MainWindow()
     win.show()
     sys.exit(app.exec())

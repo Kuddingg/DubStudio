@@ -15,7 +15,7 @@ from ..widgets.binder import Binder
 from ..widgets.common import (Card, ElidedLabel, LabeledToggle, SliderRow, button, combo, dot_pixmap,
                               field_label, form_grid, label)
 
-LEVEL_COLOR = {"info": C["muted"], "ok": "#4ADE80", "warn": "#FCC86B", "error": "#FF8FA3"}
+LEVEL_COLOR = {"info": "muted", "ok": "chip_ok", "warn": "chip_warn", "error": "chip_err"}   # khóa trong C
 
 
 class StatTile(QFrame):
@@ -48,6 +48,7 @@ class SystemPage(QWidget):
     changed = Signal()
     recommend = Signal(dict)   # gợi ý cấu hình từ Kiểm tra GPU: {"encoder", "device"}
     checkUpdate = Signal()     # người dùng bấm "Kiểm tra cập nhật"
+    themeChanged = Signal(str)  # người dùng đổi Giao diện (Tối / Sáng / Theo Windows)
 
     def __init__(self):
         super().__init__()
@@ -82,6 +83,7 @@ class SystemPage(QWidget):
         row2.setSpacing(16)
         left = QVBoxLayout()
         left.setSpacing(16)
+        left.addWidget(self._look_card())
         left.addWidget(self._update_card())
         left.addWidget(self._layers_card(), 1)
         row2.addLayout(left, 1)
@@ -178,6 +180,19 @@ class SystemPage(QWidget):
         edit.textChanged.connect(refresh)
         refresh()
         return box
+
+    def _look_card(self):
+        from .. import theme
+        c = Card("Giao diện", "sliders", C["accent2"])
+        r = QHBoxLayout()
+        r.addWidget(field_label("Chế độ màu"))
+        cb = self.binder.bind("theme", combo(list(theme.MODES), "Tối"))
+        cb.activated.connect(lambda _i: self.themeChanged.emit(cb.currentText()))   # chỉ khi người dùng chọn
+        r.addWidget(cb, 1)
+        c.add(r)
+        c.add(label("Đổi chế độ cần mở lại app (app sẽ hỏi). \"Theo Windows\" dùng cài đặt Sáng / Tối của máy.",
+                    "Dim", wrap=True))
+        return c
 
     def _update_card(self):
         from core import updater
@@ -342,7 +357,7 @@ class SystemPage(QWidget):
 
     # ---------------------------------------------------------------- logic
     def append_log(self, level: str, text: str):
-        color = LEVEL_COLOR.get(level, C["muted"])
+        color = C[LEVEL_COLOR.get(level, "muted")]
         self.console.appendHtml(f'<span style="color:{color}">{text.replace("<", "&lt;")}</span>')
         self.console.moveCursor(QTextCursor.End)
 

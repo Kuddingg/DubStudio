@@ -1,9 +1,9 @@
-"""Bảng màu + stylesheet toàn app (dark theme)."""
+"""Bảng màu + stylesheet toàn app (chế độ tối / sáng)."""
 from string import Template
 
 from PySide6.QtGui import QColor, QFont, QFontDatabase
 
-C = {
+DARK = {
     "bg": "#090B10",
     "surface": "#0D1016",
     "card": "#12161F",
@@ -20,7 +20,69 @@ C = {
     "green": "#22C55E",
     "red": "#F43F5E",
     "amber": "#F5A524",
+    # màu phụ (trước đây ghi cứng trong QSS)
+    "sel_text": "#FFFFFF",          # chữ trên nền đang chọn (menu trái, nút phân đoạn…)
+    "btn_hover": "#222838",
+    "btn_hover_border": "#3A4258",
+    "btn_pressed": "#151924",
+    "danger_text": "#FF8FA3",
+    "scroll": "#262C3B",
+    "scroll_hover": "#39425A",
+    "alt_row": "#10141C",
+    "row_sel": "#1C2032",
+    "tool_hover": "#151A25",
+    "console_bg": "#07090D",
+    "console_text": "#A9B1C4",
+    "chip_ok": "#4ADE80",
+    "chip_run": "#C4B5FF",
+    "chip_err": "#FF8FA3",
+    "chip_warn": "#FCC86B",
+    "chip_info": "#67E8F9",
+    "switch_off": "#2A3142",
 }
+
+LIGHT = {
+    "bg": "#F3F4F8",
+    "surface": "#FFFFFF",
+    "card": "#FFFFFF",
+    "card2": "#F1F3F7",
+    "input": "#FFFFFF",
+    "border": "#E1E4EB",
+    "border2": "#CBD0DA",
+    "text": "#161A24",
+    "muted": "#5B6376",
+    "dim": "#8D94A5",
+    "accent": "#6D4AFF",
+    "accent2": "#4C7DFF",
+    "cyan": "#0891B2",
+    "green": "#16A34A",
+    "red": "#E11D48",
+    "amber": "#D97706",
+    "sel_text": "#3A22C9",
+    "btn_hover": "#E9ECF2",
+    "btn_hover_border": "#B9C0CD",
+    "btn_pressed": "#DFE3EB",
+    "danger_text": "#C8243F",
+    "scroll": "#CDD2DC",
+    "scroll_hover": "#A8B0BF",
+    "alt_row": "#F6F7FA",
+    "row_sel": "#F1EDFF",
+    "tool_hover": "#F8F9FC",
+    "console_bg": "#F7F8FB",
+    "console_text": "#3A4255",
+    "chip_ok": "#15803D",
+    "chip_run": "#5B3FD6",
+    "chip_err": "#C8243F",
+    "chip_warn": "#A15C07",
+    "chip_info": "#0E7490",
+    "switch_off": "#C9CED9",
+}
+
+# Tên hiển thị trong tab Hệ thống → giá trị nội bộ
+MODES = {"Tối": "dark", "Sáng": "light", "Theo Windows": "system"}
+
+C = dict(DARK)        # các module import C trực tiếp → luôn sửa tại chỗ, không gán lại
+MODE = "dark"         # chế độ đang dùng thật sự ("dark" / "light")
 
 FONT = "Segoe UI"
 
@@ -48,7 +110,7 @@ QToolTip { background: $card2; color: $text; border: 1px solid $border2; padding
 QPushButton#Nav { background: transparent; border: none; border-radius: 10px; color: $muted;
     text-align: left; padding: 10px 12px; font-size: 13px; font-weight: 600; }
 QPushButton#Nav:hover { background: $card; color: $text; }
-QPushButton#Nav:checked { background: rgba(124, 92, 255, 38); color: #FFFFFF; }
+QPushButton#Nav:checked { background: rgba(124, 92, 255, 38); color: $sel_text; }
 #TopBar { background: $bg; border-bottom: 1px solid $border; }
 #PageTitle { font-size: 19px; font-weight: 700; }
 #PageSub { color: $muted; font-size: 12px; }
@@ -79,19 +141,19 @@ QComboBox::drop-down { border: none; width: 26px; subcontrol-origin: padding; su
 QComboBox::down-arrow { image: url("$chevron"); width: 12px; height: 12px; }
 QComboBox QAbstractItemView { background: $card2; border: 1px solid $border2; border-radius: 8px; padding: 4px; outline: 0; }
 QComboBox QAbstractItemView::item { min-height: 28px; padding: 0 8px; border-radius: 6px; color: $text; }
-QComboBox QAbstractItemView::item:hover, QComboBox QAbstractItemView::item:selected { background: rgba(124, 92, 255, 60); color: #FFFFFF; }
+QComboBox QAbstractItemView::item:hover, QComboBox QAbstractItemView::item:selected { background: rgba(124, 92, 255, 60); color: $sel_text; }
 
 /* ---------- Buttons ---------- */
 QPushButton { background: $card2; border: 1px solid $border2; border-radius: 9px; padding: 7px 14px; font-weight: 600; color: $text; }
-QPushButton:hover { background: #222838; border-color: #3A4258; }
-QPushButton:pressed { background: #151924; }
+QPushButton:hover { background: $btn_hover; border-color: $btn_hover_border; }
+QPushButton:pressed { background: $btn_pressed; }
 QPushButton:disabled { color: $dim; background: $card; border-color: $border; }
 QPushButton[variant="primary"] { border: none; color: #FFFFFF;
     background: qlineargradient(x1:0, y1:0, x2:1, y2:0, stop:0 $accent, stop:1 $accent2); }
 QPushButton[variant="primary"]:hover { background: qlineargradient(x1:0, y1:0, x2:1, y2:0, stop:0 #8E72FF, stop:1 #6F9BFF); }
 QPushButton[variant="primary"]:pressed { background: $accent; }
 QPushButton[variant="primary"]:disabled { background: $card2; color: $dim; }
-QPushButton[variant="danger"] { background: rgba(244, 63, 94, 28); border: 1px solid rgba(244, 63, 94, 90); color: #FF8FA3; }
+QPushButton[variant="danger"] { background: rgba(244, 63, 94, 28); border: 1px solid rgba(244, 63, 94, 90); color: $danger_text; }
 QPushButton[variant="danger"]:hover { background: rgba(244, 63, 94, 55); }
 QPushButton[variant="danger"]:disabled { background: $card; border-color: $border; color: $dim; }
 QPushButton[variant="ghost"] { background: transparent; border: 1px solid transparent; color: $muted; }
@@ -103,7 +165,7 @@ QPushButton#Seg { border-radius: 0; background: $input; border: 1px solid $borde
 QPushButton#Seg[pos="first"] { border-top-left-radius: 8px; border-bottom-left-radius: 8px; }
 QPushButton#Seg[pos="last"] { border-top-right-radius: 8px; border-bottom-right-radius: 8px; }
 QPushButton#Seg:hover { color: $text; }
-QPushButton#Seg:checked { background: rgba(124, 92, 255, 45); color: #FFFFFF; border-color: $accent; }
+QPushButton#Seg:checked { background: rgba(124, 92, 255, 45); color: $sel_text; border-color: $accent; }
 
 /* ---------- Check / slider / progress ---------- */
 QCheckBox { spacing: 8px; color: $text; }
@@ -113,7 +175,7 @@ QCheckBox::indicator:checked { background: $accent; border-color: $accent; image
 QSlider { min-height: 18px; }
 QSlider::groove:horizontal { height: 4px; background: $border; border-radius: 2px; }
 QSlider::sub-page:horizontal { border-radius: 2px; background: qlineargradient(x1:0, y1:0, x2:1, y2:0, stop:0 $accent, stop:1 $accent2); }
-QSlider::handle:horizontal { background: #FFFFFF; width: 14px; height: 14px; margin: -5px 0; border-radius: 7px; }
+QSlider::handle:horizontal { background: #FFFFFF; border: 1px solid $border2; width: 12px; height: 12px; margin: -5px 0; border-radius: 7px; }
 QSlider::handle:horizontal:hover { background: #DCD3FF; }
 QProgressBar { background: $input; border: none; border-radius: 3px; min-height: 6px; max-height: 6px; }
 QProgressBar::chunk { border-radius: 3px; background: qlineargradient(x1:0, y1:0, x2:1, y2:0, stop:0 $accent, stop:1 $cyan); }
@@ -122,10 +184,10 @@ QProgressBar::chunk { border-radius: 3px; background: qlineargradient(x1:0, y1:0
 QScrollArea { background: transparent; border: none; }
 QScrollArea > QWidget > QWidget { background: transparent; }
 QScrollBar:vertical { background: transparent; width: 10px; margin: 2px; }
-QScrollBar::handle:vertical { background: #262C3B; border-radius: 3px; min-height: 30px; margin: 0 2px; }
-QScrollBar::handle:vertical:hover { background: #39425A; }
+QScrollBar::handle:vertical { background: $scroll; border-radius: 3px; min-height: 30px; margin: 0 2px; }
+QScrollBar::handle:vertical:hover, QScrollBar::handle:horizontal:hover { background: $scroll_hover; }
 QScrollBar:horizontal { background: transparent; height: 10px; margin: 2px; }
-QScrollBar::handle:horizontal { background: #262C3B; border-radius: 3px; min-width: 30px; margin: 2px 0; }
+QScrollBar::handle:horizontal { background: $scroll; border-radius: 3px; min-width: 30px; margin: 2px 0; }
 QScrollBar::add-line, QScrollBar::sub-line { width: 0; height: 0; }
 QScrollBar::add-page, QScrollBar::sub-page { background: none; }
 
@@ -133,9 +195,9 @@ QScrollBar::add-page, QScrollBar::sub-page { background: none; }
 QListWidget { background: transparent; border: none; outline: 0; }
 QListWidget#Presets::item { padding: 9px 12px; border-radius: 8px; color: $muted; margin: 1px 0; }
 QListWidget#Presets::item:hover { background: $card2; color: $text; }
-QListWidget#Presets::item:selected { background: rgba(124, 92, 255, 45); color: #FFFFFF; }
+QListWidget#Presets::item:selected { background: rgba(124, 92, 255, 45); color: $sel_text; }
 QTableView, QTableWidget { background: $input; border: 1px solid $border; border-radius: 10px; gridline-color: transparent;
-    selection-background-color: rgba(124, 92, 255, 60); selection-color: #FFFFFF; alternate-background-color: #10141C; outline: 0; }
+    selection-background-color: rgba(124, 92, 255, 60); selection-color: $sel_text; alternate-background-color: $alt_row; outline: 0; }
 QTableView::item { padding: 4px 8px; border: none; }
 QHeaderView { background: transparent; }
 QHeaderView::section { background: $card2; color: $muted; border: none; border-bottom: 1px solid $border; padding: 7px 8px;
@@ -147,20 +209,20 @@ QSplitter::handle:horizontal { width: 10px; }
 
 /* ---------- Chips / rows ---------- */
 QLabel#Chip { border-radius: 9px; padding: 2px 9px; font-size: 11px; font-weight: 700; background: $card2; color: $muted; }
-QLabel#Chip[tone="ok"] { background: rgba(34, 197, 94, 35); color: #4ADE80; }
-QLabel#Chip[tone="run"] { background: rgba(124, 92, 255, 50); color: #C4B5FF; }
-QLabel#Chip[tone="err"] { background: rgba(244, 63, 94, 40); color: #FF8FA3; }
-QLabel#Chip[tone="warn"] { background: rgba(245, 165, 36, 38); color: #FCC86B; }
-QLabel#Chip[tone="info"] { background: rgba(34, 211, 238, 32); color: #67E8F9; }
+QLabel#Chip[tone="ok"] { background: rgba(34, 197, 94, 35); color: $chip_ok; }
+QLabel#Chip[tone="run"] { background: rgba(124, 92, 255, 50); color: $chip_run; }
+QLabel#Chip[tone="err"] { background: rgba(244, 63, 94, 40); color: $chip_err; }
+QLabel#Chip[tone="warn"] { background: rgba(245, 165, 36, 38); color: $chip_warn; }
+QLabel#Chip[tone="info"] { background: rgba(34, 211, 238, 32); color: $chip_info; }
 QFrame#JobRow { background: $card2; border: 1px solid $border; border-radius: 12px; }
 QFrame#JobRow:hover { border-color: $border2; }
-QFrame#JobRow[selected="true"] { border: 1px solid $accent; background: #1C2032; }
+QFrame#JobRow[selected="true"] { border: 1px solid $accent; background: $row_sel; }
 QFrame#DropZone { border: 2px dashed $border2; border-radius: 14px; background: $input; }
 QFrame#StatTile { background: $card2; border: 1px solid $border; border-radius: 12px; }
 QFrame#ToolCard { background: $card; border: 1px solid $border; border-radius: 14px; }
-QFrame#ToolCard:hover { border-color: $border2; background: #151A25; }
+QFrame#ToolCard:hover { border-color: $border2; background: $tool_hover; }
 QFrame#VideoPanel { background: #000000; border-radius: 10px; }
-QPlainTextEdit#Console { font-family: "Cascadia Mono", "Consolas"; font-size: 12px; background: #07090D; color: #A9B1C4; }
+QPlainTextEdit#Console { font-family: "Cascadia Mono", "Consolas"; font-size: 12px; background: $console_bg; color: $console_text; }
 QMenu { background: $card2; border: 1px solid $border2; border-radius: 8px; padding: 4px; }
 QMenu::item { padding: 6px 18px; border-radius: 6px; }
 QMenu::item:selected { background: rgba(124, 92, 255, 60); }
@@ -177,10 +239,26 @@ def _pick_font() -> str:
     return QFont().family()
 
 
-def apply(app) -> None:
-    global FONT
+def resolve(mode: str) -> str:
+    """'dark' / 'light' / 'system' (hoặc tên hiển thị) → 'dark' / 'light'."""
+    mode = MODES.get(mode, mode)
+    if mode == "system":
+        try:
+            from PySide6.QtCore import Qt
+            from PySide6.QtGui import QGuiApplication
+            return "light" if QGuiApplication.styleHints().colorScheme() == Qt.ColorScheme.Light else "dark"
+        except Exception:  # noqa: BLE001 - Qt cũ / không đọc được → tối
+            return "dark"
+    return "light" if mode == "light" else "dark"
+
+
+def apply(app, mode: str = "dark") -> None:
+    global FONT, MODE
     from . import icons
 
+    MODE = resolve(mode)
+    C.clear()
+    C.update(LIGHT if MODE == "light" else DARK)
     FONT = _pick_font()
     f = QFont(FONT, 10)
     f.setHintingPreference(QFont.PreferNoHinting)
