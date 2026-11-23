@@ -8,7 +8,10 @@ def main():
 
     from app import theme
     from app.main_window import MainWindow
+    from core import crash
+    from core.version import VERSION
 
+    crash.install(VERSION)                       # ghi lỗi bất ngờ ra file + báo người dùng
     app = QApplication(sys.argv)
     app.setApplicationName("DubStudio")
     theme.apply(app)

@@ -6,6 +6,7 @@
 """
 from __future__ import annotations
 
+import os
 import subprocess
 from pathlib import Path
 
@@ -34,18 +35,82 @@ def _device(cfg: dict) -> tuple[str, str]:
     return ("cuda", "float16") if has_cuda else ("cpu", "int8")
 
 
-def get_model(name: str, cfg: dict):
-    from faster_whisper import WhisperModel
+# Tắt các cảnh báo kỹ thuật của Hugging Face (symlink, HF_TOKEN, Xet…) cho nhật ký gọn
+for _k, _v in {"HF_HUB_DISABLE_SYMLINKS_WARNING": "1", "HF_HUB_DISABLE_PROGRESS_BARS": "1",
+               "HF_HUB_VERBOSITY": "error", "HF_HUB_DISABLE_XET": "1", "HF_HUB_DISABLE_TELEMETRY": "1"}.items():
+    os.environ.setdefault(_k, _v)
 
+FILES = ["config.json", "preprocessor_config.json", "model.bin", "tokenizer.json", "vocabulary.*"]
+
+
+def _root() -> Path:
     from app.paths import DATA
+    r = DATA / "models" / "whisper"
+    r.mkdir(parents=True, exist_ok=True)
+    return r
+
+
+def _dir_size(p: Path) -> int:
+    return sum(f.stat().st_size for f in p.rglob("*") if f.is_file())
+
+
+def ensure_model(name: str, report=lambda p, msg=None: None, should_stop=lambda: False) -> str:
+    """Trả về thư mục model trên máy; chưa có thì tải về, báo tiến độ theo MB."""
+    import fnmatch
+    import threading
+
+    from faster_whisper.utils import _MODELS, download_model
+    root = _root()
+    try:
+        return download_model(name, cache_dir=str(root), local_files_only=True)   # đã có sẵn → khỏi tải
+    except Exception:  # noqa: BLE001
+        pass
+    repo = _MODELS.get(name, name)
+    total = 0
+    try:
+        from huggingface_hub import HfApi
+        info = HfApi().model_info(repo, files_metadata=True)
+        total = sum(s.size or 0 for s in info.siblings if any(fnmatch.fnmatch(s.rfilename, f) for f in FILES))
+    except Exception:  # noqa: BLE001 - không lấy được tổng dung lượng → vẫn tải, chỉ báo MB đã tải
+        pass
+    log(f"Tải model nhận giọng nói “{name}” lần đầu ({total / 1e6:.0f} MB)…" if total else
+        f"Tải model nhận giọng nói “{name}” lần đầu…")
+    base = _dir_size(root)
+    res: dict = {}
+
+    def work():
+        try:
+            res["path"] = download_model(name, cache_dir=str(root))
+        except Exception as e:  # noqa: BLE001
+            res["err"] = e
+
+    th = threading.Thread(target=work, daemon=True)
+    th.start()
+    while th.is_alive():
+        th.join(0.5)
+        done = max(0, _dir_size(root) - base)
+        msg = (f"Tải model nhận giọng nói {name} (lần đầu): {done / 1e6:.0f} / {total / 1e6:.0f} MB" if total
+               else f"Tải model nhận giọng nói {name} (lần đầu): {done / 1e6:.0f} MB")
+        report(min(0.99, done / total) if total else 0.0, msg)
+        if should_stop():
+            return ""                                  # luồng tải chạy nốt ở nền, lần sau dùng tiếp
+    if "err" in res:
+        raise RuntimeError(f"Không tải được model nhận giọng nói: {res['err']}. Kiểm tra mạng rồi thử lại")
+    log(f"Đã tải xong model “{name}”", "ok")
+    return res["path"]
+
+
+def get_model(name: str, cfg: dict, report=lambda p, msg=None: None, should_stop=lambda: False):
+    from faster_whisper import WhisperModel
     device, ctype = _device(cfg)
     key = (name, device)
     if key not in _cache:
-        root = DATA / "models" / "whisper"
-        root.mkdir(parents=True, exist_ok=True)
-        log(f"Nạp model nhận giọng nói “{name}” ({device}); lần đầu sẽ tải về máy, có thể mất vài phút…")
+        path = ensure_model(name, report, should_stop)
+        if not path:
+            return None
+        log(f"Nạp model nhận giọng nói “{name}” ({'GPU' if device == 'cuda' else 'CPU'})")
         _cache.clear()
-        _cache[key] = WhisperModel(name, device=device, compute_type=ctype, download_root=str(root))
+        _cache[key] = WhisperModel(path, device=device, compute_type=ctype)
     return _cache[key]
 
 
@@ -59,7 +124,9 @@ def transcribe(audio: Path, duration: float, cfg: dict, report=lambda p: None,
                should_stop=lambda: False) -> list[tuple[float, float, str]]:
     name = cfg.get("asr_model") or "small"
     lang = LANG.get(str(cfg.get("src_lang", "")))
-    model = get_model(name, cfg)
+    model = get_model(name, cfg, lambda p, m=None: report(0.0, m), should_stop)
+    if model is None:
+        return []
     segments, info = model.transcribe(str(audio), language=lang, vad_filter=True, beam_size=5, word_timestamps=True,
                                       initial_prompt=PROMPT.get(lang or "", None), condition_on_previous_text=False)
     if not lang:

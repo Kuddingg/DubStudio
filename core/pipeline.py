@@ -63,8 +63,9 @@ class PipelineWorker(QThread):
             log(f"Bắt đầu: {job['name']}")
             try:
                 for key, label, w in steps:
-                    def report(p, _label=label, _done=done, _w=w, _id=job["id"]):
-                        self.progress.emit(_id, _label, (_done + _w * min(1.0, p)) / total)
+                    def report(p, msg=None, _label=label, _done=done, _w=w, _id=job["id"]):
+                        # msg: dòng trạng thái riêng (vd "Tải model … 120/480 MB"), không có thì hiện tên bước
+                        self.progress.emit(_id, msg or _label, (_done + _w * min(1.0, p)) / total)
 
                     report(0)
                     getattr(self, f"step_{key}")(job, report)
@@ -118,7 +119,7 @@ class PipelineWorker(QThread):
         # Có nhạc nền → tách giọng trước (Demucs) rồi mới nghe: nhận chữ chính xác hơn nhiều
         audio = None
         if self.cfg.get("keep_music", True) and separate.available():
-            separate.separate(job["path"], wd, self.cfg, True, lambda p: report(0.4 * p), lambda: self._stop)
+            separate.separate(job["path"], wd, self.cfg, True, lambda p, m=None: report(0.4 * p, m), lambda: self._stop)
             if self._stop:
                 return
             if (wd / "vocals.wav").exists():
@@ -127,7 +128,7 @@ class PipelineWorker(QThread):
             audio = asr.extract_audio(job["path"], wd / "asr_input.wav")
         base = 0.4 if audio.name == "vocals.wav" else 0.05
         cues = asr.transcribe(audio, float(job["duration"]), self.cfg,
-                              lambda p: report(base + (1 - base) * p), lambda: self._stop)
+                              lambda p, m=None: report(base + (1 - base) * p, m), lambda: self._stop)
         if self._stop:
             return
         if not cues:

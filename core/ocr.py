@@ -28,14 +28,17 @@ def get_engine(use_gpu: bool = False):
     if _engine is not None and _engine_gpu == use_gpu:
         return _engine
     from rapidocr_onnxruntime import RapidOCR
+    # Mặc định RapidOCR phóng ảnh cho cạnh NGẮN ≥ 736px → dải phụ đề 1024×100 bị phóng lên ~7500×736, rất chậm.
+    # "max 960" = không phóng to dải phụ đề: nhanh hơn ~2.3 lần trên CPU và đọc chính xác hơn.
+    det = {"det_limit_type": "max", "det_limit_side_len": 960}
     if use_gpu:
         try:
-            _engine = RapidOCR(det_use_cuda=True, cls_use_cuda=True, rec_use_cuda=True)
+            _engine = RapidOCR(det_use_cuda=True, cls_use_cuda=True, rec_use_cuda=True, **det)
             _engine_gpu = True
             return _engine
         except Exception as e:  # noqa: BLE001
             log(f"OCR GPU không khả dụng, chuyển sang CPU: {e}", "warn")
-    _engine = RapidOCR()
+    _engine = RapidOCR(**det)
     _engine_gpu = use_gpu
     return _engine
 
@@ -112,7 +115,7 @@ def text_mask(img: np.ndarray, mask_h: int) -> np.ndarray:
 
 def read_text(engine, img: np.ndarray, conf: float) -> tuple[str, float]:
     """OCR một ảnh → (chữ đã sắp theo dòng trên→dưới, trái→phải; độ tin cậy trung bình)."""
-    result, _ = engine(img)
+    result, _ = engine(img, use_cls=False)        # phụ đề luôn nằm ngang → bỏ bước xoay chữ
     if not result:
         return "", 0.0
     items, scores = [], []
@@ -137,6 +140,66 @@ def read_text(engine, img: np.ndarray, conf: float) -> tuple[str, float]:
     lines.append(cur)
     text = " ".join("".join(t for _, t in sorted(line)) for line in lines)
     return text, sum(scores) / len(scores)
+
+
+def detect_region(video: str, width: int, height: int, duration: float, samples: int = 16,
+                  report=lambda p: None, should_stop=lambda: False, use_gpu: bool = False) -> list[float]:
+    """Tự tìm vùng phụ đề cứng: dải ngang có chữ THAY ĐỔI qua nhiều khung (logo / watermark đứng yên bị loại).
+
+    Trả về [x, y, w, h] chuẩn hóa 0..1.
+    """
+    exe = which("ffmpeg")
+    if not exe or not (width and height):
+        raise RuntimeError("Chưa đọc được video")
+    engine = get_engine(use_gpu)
+    sw = 640
+    sh = max(2, int(sw * height / width) // 2 * 2)
+    boxes = []                                       # (khung, y giữa, x0, y0, x1, y1, chữ) — chuẩn hóa
+    span = max(1.0, duration * 0.9)
+    for i in range(samples):
+        if should_stop():
+            return []
+        t = duration * 0.05 + span * (i + 0.5) / samples
+        raw = subprocess.run([exe, "-hide_banner", "-loglevel", "error", "-ss", f"{t:.2f}", "-i", video, "-frames:v", "1",
+                              "-vf", f"scale={sw}:{sh}", "-f", "rawvideo", "-pix_fmt", "bgr24", "-"],
+                             capture_output=True, creationflags=NOWIN, timeout=60).stdout
+        if len(raw) >= sw * sh * 3:
+            img = np.frombuffer(raw[:sw * sh * 3], np.uint8).reshape(sh, sw, 3)
+            result, _ = engine(img, use_cls=False)
+            for box, text, score in result or []:
+                text = text.strip()
+                if float(score) < 0.6 or len(text) < 2:
+                    continue
+                xs, ys = [p[0] / sw for p in box], [p[1] / sh for p in box]
+                cx, bw = (min(xs) + max(xs)) / 2, max(xs) - min(xs)
+                # phụ đề nằm giữa khung hoặc khá rộng; đồng hồ / số đếm / tên kênh thường nằm ở góc → bỏ
+                if abs(cx - 0.5) > 0.18 and bw < 0.3:
+                    continue
+                boxes.append((i, (min(ys) + max(ys)) / 2, min(xs), min(ys), max(xs), max(ys), text))
+        report((i + 1) / samples)
+    if not boxes:
+        raise RuntimeError("Không thấy chữ nào trên hình: video có thể không có phụ đề cứng, hãy dùng Giọng (ASR)")
+
+    # gom theo dải ngang 4% chiều cao; điểm = số câu KHÁC NHAU xuất hiện trong dải
+    bins: dict[int, list] = {}
+    for b in boxes:
+        bins.setdefault(int(b[1] / 0.04), []).append(b)
+
+    def score(items):
+        return len({b[6] for b in items}), len({b[0] for b in items})
+
+    good = {k: v for k, v in bins.items() if score(v)[0] >= max(3, samples // 5)}
+    if not good:
+        raise RuntimeError("Chỉ thấy chữ đứng yên (logo / watermark), không thấy phụ đề thay đổi theo thời gian")
+    best = max(good, key=lambda k: (score(good[k]), k))          # hòa → ưu tiên dải thấp hơn (phụ đề thường ở dưới)
+    band = [k for k in sorted(good) if abs(k - best) <= 2]         # gộp dải kề (phụ đề 2 dòng)
+    items = [b for k in band for b in good[k]]
+    y0 = max(0.0, min(b[3] for b in items) - 0.015)
+    y1 = min(1.0, max(b[5] for b in items) + 0.015)
+    half = max(0.30, 0.5 - min(b[2] for b in items) + 0.02, max(b[4] for b in items) - 0.5 + 0.02)
+    x0, x1 = max(0.02, 0.5 - half), min(0.98, 0.5 + half)          # đối xứng quanh giữa, rộng ít nhất 60%
+    log(f"Tự dò vùng phụ đề: y {y0:.0%}–{y1:.0%}, {score(items)[0]} câu khác nhau trên {score(items)[1]}/{samples} khung")
+    return [round(x0, 4), round(y0, 4), round(x1 - x0, 4), round(y1 - y0, 4)]
 
 
 def build_cues(samples: list[tuple[float, str, float]], step: float, o: OcrOptions) -> list[tuple[float, float, str]]:

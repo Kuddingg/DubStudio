@@ -117,7 +117,8 @@ class SystemPage(QWidget):
         g.addWidget(field_label("Độ chính xác"), 1, 0)
         g.addWidget(b.bind("precision", combo(["Tự động", "float16", "int8", "float32"])), 1, 1)
         model = combo(GEMINI_MODELS)
-        model.setToolTip("Tự động: dùng model tốt nhất, quá tải thì tự chuyển sang model dự phòng")
+        model.setToolTip("Model được thử trước. Hết quota hoặc quá tải thì app tự chuyển sang model khác,\n"
+                         "không làm dừng video. Tự động = dùng model tốt nhất còn chạy được.")
         g.addWidget(field_label("Model Gemini"), 2, 0)
         g.addWidget(b.bind("gemini_model", model), 2, 1)
         asr_m = combo(["small", "medium", "large-v3"])
@@ -324,7 +325,10 @@ class SystemPage(QWidget):
 
     def _log_card(self):
         c = Card("Nhật ký", "terminal", C["muted"])
-        clear = button("Xóa", "trash", "ghost")
+        open_logs = button("Mở thư mục nhật ký", "folder", "ghost", "File nhật ký theo ngày, gửi cho nhà phát triển khi app lỗi")
+        open_logs.clicked.connect(self._open_logs)
+        c.header.addWidget(open_logs)
+        clear = button("Xóa", "trash", "ghost", "Xóa nội dung đang hiện (file nhật ký vẫn giữ)")
         c.header.addWidget(clear)
         self.console = QPlainTextEdit()
         self.console.setObjectName("Console")
@@ -341,6 +345,13 @@ class SystemPage(QWidget):
         color = LEVEL_COLOR.get(level, C["muted"])
         self.console.appendHtml(f'<span style="color:{color}">{text.replace("<", "&lt;")}</span>')
         self.console.moveCursor(QTextCursor.End)
+
+    def _open_logs(self):
+        from PySide6.QtCore import QUrl
+        from PySide6.QtGui import QDesktopServices
+
+        from core.log import log_dir
+        QDesktopServices.openUrl(QUrl.fromLocalFile(str(log_dir())))
 
     def _pick_logo(self):
         f, _ = QFileDialog.getOpenFileName(self, "Chọn logo", "", "Ảnh (*.png *.jpg *.webp)")

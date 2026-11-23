@@ -61,7 +61,8 @@ class GeminiClient:
         self.keys = [k.strip() for k in keys if k.strip()]
         if not self.keys:
             raise TranslateError("Chưa có API key: vào tab Hệ thống → ô API key")
-        self.models = [model] if model and model in GEMINI_AUTO else list(GEMINI_AUTO)
+        # Model người dùng chọn được thử TRƯỚC; hết quota / quá tải thì tự dùng model khác thay vì dừng cả video
+        self.models = [model] + [m for m in GEMINI_AUTO if m != model] if model in GEMINI_AUTO else list(GEMINI_AUTO)
         self.key_i = 0
         self.should_stop = should_stop
 
@@ -107,7 +108,7 @@ class GeminiClient:
                     raise TranslateError("Tất cả model Gemini đều hết quota với key hiện tại: đợi vài phút, "
                                          "thêm key khác hoặc nâng gói trả phí") from None
                 if r == rounds - 1:
-                    raise TranslateError(f"Dịch thất bại sau {rounds} lượt thử: {f.last_err}") from None
+                    raise TranslateError(f"Gemini không phản hồi được sau {rounds} lượt thử: {f.last_err}") from None
                 wait = 10 * (r + 1)
                 log(f"Mọi model Gemini đều lỗi (mạng / quá tải), thử lại sau {wait}s…", "warn")
                 self._sleep(wait)

@@ -77,7 +77,7 @@ def match(video: str, start: float, length: float, workdir: Path, cfg: dict,
     report(0.03, "Tách giọng khỏi nhạc nền…")
     voice_wav = clip
     if separate.available():
-        separate.separate(str(clip), workdir, cfg, True, lambda p: report(0.03 + 0.37 * p, "Tách giọng khỏi nhạc nền…"),
+        separate.separate(str(clip), workdir, cfg, True, lambda p, m=None: report(0.03 + 0.37 * p, m or "Tách giọng khỏi nhạc nền…"),
                           should_stop)
         if (workdir / "vocals.wav").exists():
             voice_wav = workdir / "vocals.wav"
@@ -86,7 +86,7 @@ def match(video: str, start: float, length: float, workdir: Path, cfg: dict,
 
     report(0.42, "Nghe nội dung giọng mẫu…")
     cues = asr.transcribe(asr.extract_audio(str(voice_wav), workdir / "asr.wav"), length,
-                          {**cfg, "src_lang": "Tự nhận diện"}, lambda p: report(0.42 + 0.18 * p, "Nghe nội dung giọng mẫu…"),
+                          {**cfg, "src_lang": "Tự nhận diện"}, lambda p, m=None: report(0.42 + 0.18 * p, m or "Nghe nội dung giọng mẫu…"),
                           should_stop)
     text = " ".join(t for _, _, t in cues).strip()
     talk = sum(e - s for s, e, _ in cues)

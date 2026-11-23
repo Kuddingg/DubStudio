@@ -172,10 +172,62 @@ class SubEditorDialog(QDialog):
         open_btn = button("Mở SRT…", "folder")
         open_btn.clicked.connect(self._open_srt)
         save_btn = button("Lưu SRT", "save", "primary")
-        save_btn.clicked.connect(self._save)
+        save_btn.clicked.connect(lambda: self._save())
+        self.btn_tr_empty = button("Dịch câu trống", "sparkles", "tool", "Chỉ dịch những câu chưa có bản dịch")
+        self.btn_tr_empty.clicked.connect(lambda: self._translate_many(only_empty=True))
+        self.btn_tr_all = button("Dịch lại tất cả", "refresh", "tool",
+                                 "Dịch lại toàn bộ theo kịch bản đang chọn (ghi đè cả câu đã sửa tay)")
+        self.btn_tr_all.clicked.connect(lambda: self._translate_many(only_empty=False))
+        h.addWidget(self.btn_tr_empty)
+        h.addWidget(self.btn_tr_all)
+        h.addSpacing(8)
         h.addWidget(open_btn)
         h.addWidget(save_btn)
         return h
+
+    def _translate_many(self, only_empty: bool):
+        from PySide6.QtWidgets import QMessageBox
+
+        from core import presets, translate
+        from core.tasks import run_async
+        idx = [i for i, c in enumerate(self.cues) if c.src.strip() and (not only_empty or not c.dst.strip())]
+        if not idx:
+            toast(self, "Không có câu nào cần dịch" if only_empty else "Chưa có câu gốc để dịch", "warn")
+            return
+        if not only_empty and QMessageBox.question(
+                self, "Dịch lại tất cả", f"Dịch lại {len(idx)} câu theo kịch bản “{self.cfg.get('preset', 'Mặc định')}”?\n"
+                "Các câu đã sửa tay sẽ bị ghi đè.") != QMessageBox.Yes:
+            return
+        items = presets.load()
+        preset = next((p for p in items if p["name"] == self.cfg.get("preset")), items[0])
+        srcs = [self.cues[i].src for i in idx]
+        secs = [(self.cues[i].end - self.cues[i].start) / 1000 for i in idx]
+        for b in (self.btn_tr_empty, self.btn_tr_all):
+            b.setEnabled(False)
+        toast(self, f"Đang dịch {len(idx)} câu…", "info")
+
+        def done(vis: list):
+            r = self._row()                                # nhớ dòng đang chọn trước khi làm mới bảng
+            for i, v in zip(idx, vis):
+                if v:
+                    self.cues[i].dst = v
+            self.model.reset()
+            self._cur_cue = -2
+            if 0 <= r < len(self.cues):
+                self.table.selectRow(r)                    # chọn lại → ô Bản dịch hiện nội dung mới
+                self.ed_dst.setPlainText(self.cues[r].dst)
+            for b in (self.btn_tr_empty, self.btn_tr_all):
+                b.setEnabled(True)
+            self._save(silent=True)                        # dịch tốn công → lưu luôn
+            toast(self, f"Đã dịch {sum(1 for v in vis if v)} câu và lưu phụ đề", "ok")
+
+        def failed(err: str):
+            for b in (self.btn_tr_empty, self.btn_tr_all):
+                b.setEnabled(True)
+            toast(self, f"Dịch lỗi: {err}", "err")
+
+        run_async(translate.translate_all, srcs, preset, self.cfg, lambda p: None, lambda: False, 40, 6, secs,
+                  on_done=done, on_error=failed)
 
     def _player(self):
         c = Card(padding=12)
@@ -518,10 +570,11 @@ class SubEditorDialog(QDialog):
         if cues:
             self.table.selectRow(0)
 
-    def _save(self):
+    def _save(self, silent: bool = False):
         self.srt_vi.write_text(write_srt(self.cues, "dst"), encoding="utf-8")
         self.srt_zh.write_text(write_srt(self.cues, "src"), encoding="utf-8")
-        toast(self, "Đã lưu phụ đề", "ok")
+        if not silent:
+            toast(self, "Đã lưu phụ đề", "ok")
 
     # ---------------------------------------------------------------- lifecycle
     def showEvent(self, e):

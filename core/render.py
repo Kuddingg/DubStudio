@@ -67,7 +67,8 @@ def _new_frame_margin(cfg: dict, W: int, H: int, tgt) -> int | None:
     return int(max(TH * 0.04, free / 2 - size / 2))        # giữa vùng trống phía dưới
 
 
-def write_ass(srt: Path, out: Path, cfg: dict, W: int, H: int, sub_rect=None, margin_v: int | None = None) -> None:
+def write_ass(srt: Path, out: Path, cfg: dict, W: int, H: int, sub_rect=None, margin_v: int | None = None,
+              offset_ms: int = 0) -> None:
     scale = min(W, H) / 1080       # cỡ chữ theo cạnh ngắn → khung dọc 1080×1920 không bị chữ quá to
     size = max(10, int(float(cfg.get("sub_size", 48)) * scale))
     outline = float(cfg.get("sub_outline_w", 3)) * scale
@@ -101,6 +102,10 @@ def write_ass(srt: Path, out: Path, cfg: dict, W: int, H: int, sub_rect=None, ma
         return f"{cs // 360000}:{cs // 6000 % 60:02d}:{cs // 100 % 60:02d}.{cs % 100:02d}"
 
     for c in parse_srt(srt.read_text("utf-8")):
+        c.start, c.end = c.start - offset_ms, c.end - offset_ms      # xem thử: dời phụ đề theo điểm bắt đầu
+        if c.end <= 0:
+            continue
+        c.start = max(0, c.start)
         text = c.dst.strip().replace("{", "(").replace("}", ")").replace("\n", r"\N")
         if text:
             lines.append(f"Dialogue: 0,{tc(c.start)},{tc(c.end)},Default,,0,0,0,,{text}")
@@ -151,11 +156,13 @@ def unique_path(p: Path) -> Path:
 
 
 # ============================================================================ build
-def build_command(job: dict, cfg: dict, workdir: Path, out: Path):
+def build_command(job: dict, cfg: dict, workdir: Path, out: Path, preview: tuple | None = None):
     """Trả về (danh sách tham số FFmpeg sau phần encoder, encoder_args). Chạy với cwd=workdir."""
     W, H = int(job["width"]), int(job["height"])
     regions = job.get("regions", [])
-    inputs = ["-i", job["path"]]
+    seek = ["-ss", f"{preview[0]:.3f}"] if preview else []          # xem thử: tua mọi nguồn tới cùng một điểm
+    off = int(preview[0] * 1000) if preview else 0
+    inputs = [*seek, "-i", job["path"]]
     n_in = 1
     vf: list[str] = []
     cur, k = "[0:v]", 0
@@ -207,7 +214,7 @@ def build_command(job: dict, cfg: dict, workdir: Path, out: Path):
     new_frame_mv = _new_frame_margin(cfg, W, H, tgt) if (sub_on and tgt) else None
     if sub_on and new_frame_mv is None:
         sub_rect = next((r["rect"] for r in regions if r["kind"] == "sub"), None)
-        write_ass(vi, workdir / "sub_vi.ass", cfg, W, H, sub_rect)
+        write_ass(vi, workdir / "sub_vi.ass", cfg, W, H, sub_rect, offset_ms=off)
         o = lab()
         vf.append(f"{cur}subtitles=sub_vi.ass{o}")
         cur = o
@@ -229,7 +236,7 @@ def build_command(job: dict, cfg: dict, workdir: Path, out: Path):
                       f"{g}{fg}overlay=(W-w)/2:(H-h)/2{o}")
         cur = o
         if new_frame_mv is not None:   # phụ đề in sau khi đổi khung → nằm ở vùng trống, cỡ chữ theo khung mới
-            write_ass(vi, workdir / "sub_vi.ass", cfg, TW, TH, None, margin_v=new_frame_mv)
+            write_ass(vi, workdir / "sub_vi.ass", cfg, TW, TH, None, margin_v=new_frame_mv, offset_ms=off)
             o = lab()
             vf.append(f"{cur}subtitles=sub_vi.ass{o}")
             cur = o
@@ -241,7 +248,7 @@ def build_command(job: dict, cfg: dict, workdir: Path, out: Path):
     orig_audio = has_audio(job["path"])
     voice = workdir / "voice.wav"
     if cfg.get("do_dub", True) and voice.exists():
-        inputs += ["-i", str(voice)]
+        inputs += [*seek, "-i", str(voice)]
         vi_idx = n_in
         n_in += 1
         chain = [f"volume={float(cfg.get('vol_ai', 120)) / 100:.2f}"]
@@ -258,7 +265,7 @@ def build_command(job: dict, cfg: dict, workdir: Path, out: Path):
         bg_vol = 0.0
         bg_src = None
         if cfg.get("keep_music", True) and acc.exists():
-            inputs += ["-i", str(acc)]
+            inputs += [*seek, "-i", str(acc)]
             bg_src, bg_vol = f"[{n_in}:a]", float(cfg.get("vol_music", 100)) / 100
             n_in += 1
         elif orig_audio:
@@ -276,7 +283,7 @@ def build_command(job: dict, cfg: dict, workdir: Path, out: Path):
         voc = workdir / "vocals.wav"
         orig_vol = float(cfg.get("vol_orig", 0)) / 100
         if bg_src and bg_src != "[0:a]" and voc.exists() and orig_vol > 0:
-            inputs += ["-i", str(voc)]
+            inputs += [*seek, "-i", str(voc)]
             af.append(f"[{n_in}:a]volume={orig_vol:.2f}[oa]")
             n_in += 1
             mix.append("[oa]")
@@ -293,24 +300,27 @@ def build_command(job: dict, cfg: dict, workdir: Path, out: Path):
     args = [*inputs, "-filter_complex", graph, "-map", "[vout]"]
     if amap:
         args += ["-map", amap, "-c:a", "aac", "-b:a", "192k"]
-    args += ["-t", f"{float(job['duration']):.3f}", "-movflags", "+faststart"]
+    length = preview[1] if preview else float(job["duration"])
+    args += ["-t", f"{length:.3f}", "-movflags", "+faststart"]
     return args
 
 
-def render(job: dict, cfg: dict, workdir: Path, report=lambda p: None, should_stop=lambda: False) -> Path:
+def render(job: dict, cfg: dict, workdir: Path, report=lambda p: None, should_stop=lambda: False,
+           preview: tuple | None = None) -> Path:
+    """preview=(giây bắt đầu, số giây) → xuất nhanh một đoạn ngắn vào thư mục project (preview.mp4)."""
     exe = which("ffmpeg")
     if not exe:
         raise RenderError("Không tìm thấy FFmpeg")
     out_dir = Path(cfg.get("output") or Path.home() / "Videos" / "DubStudio")
     out_dir.mkdir(parents=True, exist_ok=True)
-    out = unique_path(out_dir / f"{Path(job['path']).stem}_vi.mp4")
-    args = build_command(job, cfg, workdir, out)
+    out = workdir / "preview.mp4" if preview else unique_path(out_dir / f"{Path(job['path']).stem}_vi.mp4")
+    args = build_command(job, cfg, workdir, out, preview)
     (workdir / "render_cmd.json").write_text(json.dumps(args, ensure_ascii=False, indent=1), encoding="utf-8")
 
-    encoders = [_encoder_args(cfg.get("encoder", "CPU"), cfg.get("quality", "Cân bằng"))]
+    encoders = [_encoder_args(cfg.get("encoder", "CPU"), "Nhanh" if preview else cfg.get("quality", "Cân bằng"))]
     if encoders[0][1] != "libx264":
-        encoders.append(_x264(cfg.get("quality", "Cân bằng")))
-    duration = float(job["duration"]) or 1.0
+        encoders.append(_x264("Nhanh" if preview else cfg.get("quality", "Cân bằng")))
+    duration = (preview[1] if preview else float(job["duration"])) or 1.0
     last_err = ""
     for enc in encoders:
         tmp = out.with_name(out.stem + ".part.mp4")

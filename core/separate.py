@@ -20,6 +20,7 @@ from .media import NOWIN, which
 
 MODEL = "htdemucs"
 _PCT = re.compile(r"(\d{1,3})%\|")
+_SIZE = re.compile(r"\|\s*([\d.]+[kMG]?)/([\d.]+[kMG]?)\s*\[")     # tqdm: "| 36.1M/80.2M ["
 
 
 class SeparateError(RuntimeError):
@@ -45,7 +46,7 @@ def _device(cfg: dict) -> list[str]:
 
 
 def separate(video: str, workdir: Path, cfg: dict, has_audio: bool,
-             report=lambda p: None, should_stop=lambda: False) -> Path | None:
+             report=lambda p, msg=None: None, should_stop=lambda: False) -> Path | None:
     acc, voc = workdir / "accompaniment.wav", workdir / "vocals.wav"
     meta = workdir / "separate.json"
     sig = {"video": video, "model": MODEL}
@@ -75,11 +76,12 @@ def separate(video: str, workdir: Path, cfg: dict, has_audio: bool,
 
     cmd = [*_python(), "-m", "demucs.separate", "-n", MODEL, "--two-stems", "vocals",
            *_device(cfg), "-o", str(tmpdir / "out"), str(src)]
-    log("Đang tách nhạc nền bằng Demucs (lần đầu sẽ tải model ~80MB)…")
+    log("Đang tách nhạc nền bằng Demucs…")
     proc = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True,
                             encoding="utf-8", errors="replace", creationflags=NOWIN, bufsize=1)
     tail: list[str] = []
     buf = ""
+    downloading = False                          # lần đầu: Demucs (torch.hub) tải model trước khi tách
     while True:
         ch = proc.stdout.read(1)
         if not ch:
@@ -91,8 +93,18 @@ def separate(video: str, workdir: Path, cfg: dict, has_audio: bool,
             return None
         if ch in "\r\n":                         # tqdm cập nhật bằng \r
             if buf.strip():
+                if "Downloading" in buf:
+                    downloading = True
+                    log("Tải model tách nhạc lần đầu (~80 MB)…")
                 m = _PCT.search(buf)
-                if m:
+                if m and downloading:
+                    sz = _SIZE.search(buf)
+                    extra = f" · {sz.group(1)}B / {sz.group(2)}B" if sz else ""
+                    report(0.03, f"Tải model tách nhạc (lần đầu): {m.group(1)}%{extra}")
+                    if int(m.group(1)) >= 100:
+                        downloading = False
+                        log("Đã tải xong model tách nhạc", "ok")
+                elif m:
                     report(0.03 + 0.95 * int(m.group(1)) / 100)
                 else:
                     tail = (tail + [buf.strip()])[-15:]

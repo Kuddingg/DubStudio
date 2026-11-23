@@ -226,7 +226,7 @@ class VideoCanvas(QGraphicsView):
         self.setVerticalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
         self.setViewportUpdateMode(QGraphicsView.FullViewportUpdate)
         self.setBackgroundBrush(QColor("#07090D"))
-        self.setMinimumHeight(240)
+        self.setMinimumHeight(150)
         self.setStyleSheet("background: #07090D; border-radius: 10px;")
         self._frame: QPixmap | None = None
         self._size = QSizeF(1920, 1080)

@@ -46,7 +46,7 @@ def separate_audio(p: dict, cfg: dict, report, stop) -> dict:
         raise RuntimeError("File không có âm thanh")
     wd = _workdir()
     try:
-        separate.separate(src, wd, cfg, True, lambda x: report(x, "Đang tách bằng Demucs…"), stop)
+        separate.separate(src, wd, cfg, True, lambda x, m=None: report(x, m or "Đang tách bằng Demucs…"), stop)
         if stop():
             return {}
         out, stem = _outdir(cfg), Path(src).stem
@@ -72,7 +72,7 @@ def extract_subs(p: dict, cfg: dict, report, stop) -> dict:
                                ocr.OcrOptions.from_cfg(cfg), lambda x: report(x, "Đang đọc chữ trên hình…"), stop)
         else:
             audio = asr.extract_audio(video, wd / "a.wav")
-            cues = asr.transcribe(audio, job["duration"], cfg, lambda x: report(x, "Đang nghe giọng nói…"), stop)
+            cues = asr.transcribe(audio, job["duration"], cfg, lambda x, m=None: report(x, m or "Đang nghe giọng nói…"), stop)
         if stop():
             return {}
         if not cues:

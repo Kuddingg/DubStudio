@@ -58,7 +58,7 @@ class EditorPage(QWidget):
         split.addWidget(self._preview_card())
         split.setStretchFactor(0, 2)
         split.setStretchFactor(1, 5)
-        split.setSizes([250, 560])
+        split.setSizes([220, 600])
         center.addWidget(split, 1)
         self._jobs_timer = QTimer(self, singleShot=True, interval=800, timeout=self.save_jobs)
         self._update_counts()
@@ -161,13 +161,27 @@ class EditorPage(QWidget):
             b.clicked.connect(lambda _=False, k=kind: self._add_region(k))
             tools.addWidget(b)
         tools.addStretch()
-        apply_all = button("", "copy", "ghost", "Áp dụng bố cục vùng này cho tất cả video")
+        c.add(tools)
+
+        # hàng 2: thao tác
+        acts = QHBoxLayout()
+        acts.setSpacing(6)
+        self.btn_detect = button("Tự dò vùng sub", "sparkles", "tool",
+                                 "Tự tìm vị trí phụ đề cứng và đặt vùng OCR / Làm mờ vào đó", icon_color=C["cyan"])
+        self.btn_detect.clicked.connect(self._auto_detect)
+        acts.addWidget(self.btn_detect)
+        apply_all = button("Áp dụng cho tất cả", "copy", "ghost", "Copy bố cục vùng của video này sang mọi video")
         apply_all.clicked.connect(self._apply_regions_all)
-        tools.addWidget(apply_all)
+        acts.addWidget(apply_all)
+        acts.addStretch()
+        self.btn_preview = button("Xem thử 10s", "play", "tool", "Render nhanh 10 giây từ vị trí đang xem (đủ phụ đề, giọng, "
+                                  "làm mờ, logo) để kiểm tra trước khi xuất cả video", icon_color=C["green"])
+        self.btn_preview.clicked.connect(self._preview_render)
+        acts.addWidget(self.btn_preview)
         self.btn_subs = button("Sửa phụ đề", "edit", "primary")
         self.btn_subs.clicked.connect(self.open_sub_editor)
-        tools.addWidget(self.btn_subs)
-        c.add(tools)
+        acts.addWidget(self.btn_subs)
+        c.add(acts)
         return c
 
     # ================================================================= jobs
@@ -367,6 +381,78 @@ class EditorPage(QWidget):
         if self.current:
             self.current.regions = self.canvas.get_regions()
             self._jobs_dirty()
+
+    def _preview_render(self):
+        from PySide6.QtCore import QUrl
+        from PySide6.QtGui import QDesktopServices
+
+        from core import render
+        job = self.current
+        if not job or not job.duration:
+            toast(self, "Chọn một video trước đã", "warn")
+            return
+        cfg = {**self.get_system(), **self.config.values()}
+        wd = job.workdir
+        missing = []
+        if cfg.get("do_sub", True) and not (wd / "sub_vi.srt").exists():
+            missing.append("phụ đề đã dịch")
+        if cfg.get("do_dub", True) and not (wd / "voice.wav").exists():
+            missing.append("giọng đọc")
+        if missing:
+            toast(self, f"Chưa có {' và '.join(missing)}: bản xem thử sẽ thiếu phần này (bấm Bắt đầu để tạo)", "warn")
+        start = max(0.0, min(job.preview_t, job.duration - 1.0))
+        length = min(10.0, job.duration - start)
+        payload = {"id": job.id, "name": job.name, "path": job.path, "width": job.width, "height": job.height,
+                   "duration": job.duration, "regions": job.regions}
+        self.btn_preview.setEnabled(False)
+        self.btn_preview.setText("Đang render…")
+
+        def done(out):
+            self.btn_preview.setEnabled(True)
+            self.btn_preview.setText("Xem thử 10s")
+            QDesktopServices.openUrl(QUrl.fromLocalFile(str(out)))
+            toast(self, f"Bản xem thử {media.fmt_time(start)} → {media.fmt_time(start + length)} đã mở", "ok")
+
+        def failed(err):
+            self.btn_preview.setEnabled(True)
+            self.btn_preview.setText("Xem thử 10s")
+            toast(self, f"Không render được: {err}", "err")
+
+        run_async(render.render, payload, cfg, wd, lambda p: None, lambda: False, (start, length),
+                  on_done=done, on_error=failed)
+
+    def _auto_detect(self):
+        from core import ocr
+        job = self.current
+        if not job or not job.duration:
+            toast(self, "Chọn một video trước đã", "warn")
+            return
+        self.btn_detect.setEnabled(False)
+        self.btn_detect.setText("Đang dò…")
+        toast(self, "Đang tìm vị trí phụ đề (khoảng 10–30 giây)…", "info")
+        gpu = self.get_system().get("device") == "GPU (CUDA)"
+
+        def done(rect, j=job):
+            self.btn_detect.setEnabled(True)
+            self.btn_detect.setText("Tự dò vùng sub")
+            kinds = {r["kind"] for r in j.regions}
+            for r in j.regions:
+                if r["kind"] in ("ocr", "blur"):
+                    r["rect"] = list(rect)
+            if "ocr" not in kinds:
+                j.regions.append({"kind": "ocr", "rect": list(rect), "text": ""})
+            if j is self.current:
+                self.canvas.set_regions(j.regions)
+            self._jobs_dirty()
+            toast(self, "Đã đặt vùng OCR" + (" và vùng Làm mờ" if "blur" in kinds else "") + " vào vị trí phụ đề", "ok")
+
+        def failed(err):
+            self.btn_detect.setEnabled(True)
+            self.btn_detect.setText("Tự dò vùng sub")
+            toast(self, err, "warn")
+
+        run_async(ocr.detect_region, job.path, job.width, job.height, job.duration, 16, lambda p: None,
+                  lambda: False, gpu, on_done=done, on_error=failed)
 
     def _apply_regions_all(self):
         if not self.current:
