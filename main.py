@@ -17,6 +17,8 @@ def main():
     from app.paths import SETTINGS_FILE
     from core.settings import Settings
     theme.apply(app, Settings(SETTINGS_FILE).section("system").get("theme", "Tối"))
+    from app.widgets.common import install_wheel_guard
+    install_wheel_guard(app)                     # lăn chuột không tự đổi ô chọn / ô số
     win = MainWindow()
     win.show()
     sys.exit(app.exec())

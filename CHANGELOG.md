@@ -3,6 +3,13 @@
 Mỗi bản mới thêm một mục `## <số phiên bản>` ở TRÊN CÙNG. Nội dung mục đó sẽ hiện trong cửa sổ
 "Có bản mới" và "Có gì mới" của app, và làm ghi chú khi đăng bản lên GitHub.
 
+## 0.3.0
+
+- Giao diện mới: phong cách kính bóng, tông cam, bo tròn mềm hơn, font Be Vietnam Pro
+- Chọn chế độ Tối / Sáng / Theo Windows (tab Hệ thống → Giao diện), vẫn giữ kiểu tím cũ
+- Danh sách xổ xuống bo tròn, dễ nhìn hơn
+- Sửa lỗi lăn chuột tự đổi lựa chọn: giờ lăn chuột chỉ cuộn trang, muốn đổi phải bấm vào ô
+
 ## 0.2.0
 
 - Trích phụ đề từ chữ trên hình (OCR) hoặc từ giọng nói (nhận giọng nói tự động)

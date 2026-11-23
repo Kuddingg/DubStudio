@@ -3,11 +3,12 @@ from __future__ import annotations
 
 import sys
 
-from PySide6.QtCore import (Property, QEasingCurve, QPointF, QPropertyAnimation, QRectF, QSize, Qt,
-                            QTimer, Signal)
+from PySide6.QtCore import (Property, QEasingCurve, QEvent, QObject, QPointF, QPropertyAnimation, QRectF,
+                            QSize, Qt, QTimer, Signal)
 from PySide6.QtGui import (QColor, QGuiApplication, QLinearGradient, QPainter, QPainterPath, QPixmap,
                            QRadialGradient)
-from PySide6.QtWidgets import (QAbstractButton, QAbstractSpinBox, QButtonGroup, QColorDialog,
+from PySide6.QtWidgets import (QAbstractButton, QAbstractScrollArea, QAbstractSpinBox, QApplication,
+                               QButtonGroup, QColorDialog,
                                QComboBox, QFrame, QGraphicsOpacityEffect, QGridLayout, QHBoxLayout,
                                QLabel, QListView, QPushButton, QSizePolicy, QSlider, QVBoxLayout,
                                QWidget)
@@ -49,6 +50,50 @@ def shrinkable(c: QComboBox) -> QComboBox:
     c.setMinimumContentsLength(4)
     c.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed)
     return c
+
+
+class WheelGuard(QObject):
+    """Lăn chuột qua ô chọn / ô số / thanh trượt KHÔNG đổi giá trị, mà cuộn trang như bình thường.
+
+    - Ô chọn (combo): chỉ đổi khi bấm vào rồi chọn.
+    - Ô số, thanh trượt: lăn chuột chỉ có tác dụng khi đã bấm vào ô đó (đang có con trỏ).
+    """
+
+    GUARDED = (QComboBox, QAbstractSpinBox, QSlider)
+
+    def eventFilter(self, obj, e):
+        t = e.type()
+        if t == QEvent.Polish and isinstance(obj, self.GUARDED):
+            obj.setFocusPolicy(Qt.StrongFocus)               # lăn chuột không tự "bấm vào" ô (kể cả cửa sổ mở sau)
+            return False
+        if t != QEvent.Wheel or not isinstance(obj, QWidget):
+            return False
+        w = obj
+        if isinstance(w.parent(), QAbstractSpinBox):       # ô nhập bên trong ô số
+            w = w.parent()
+        if isinstance(w, QComboBox):
+            blocked = True
+        elif isinstance(w, (QAbstractSpinBox, QSlider)):
+            blocked = not w.hasFocus()
+        else:
+            return False
+        if not blocked:
+            return False
+        p = w.parent()                                   # chuyển cú lăn cho vùng cuộn chứa nó
+        while p is not None and not isinstance(p, QAbstractScrollArea):
+            p = p.parent()
+        if p is not None:
+            bar = p.horizontalScrollBar() if e.angleDelta().y() == 0 else p.verticalScrollBar()
+            QApplication.sendEvent(bar, e)
+        return True
+
+
+def install_wheel_guard(app) -> None:
+    for w in app.allWidgets():
+        if isinstance(w, (QComboBox, QAbstractSpinBox, QSlider)):
+            w.setFocusPolicy(Qt.StrongFocus)
+    app._wheel_guard = WheelGuard(app)                  # giữ tham chiếu
+    app.installEventFilter(app._wheel_guard)
 
 
 def round_popup(c: QComboBox) -> None:
