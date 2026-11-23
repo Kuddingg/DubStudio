@@ -8,7 +8,16 @@ Gửi họ đường link này (luôn trỏ tới bản mới nhất):
 
 **https://github.com/Kuddingg/DubStudio/releases/latest**
 
-Người nhận làm:
+Trong mục **Assets** có 2 file, người nhận chọn 1:
+
+| File | Dùng khi |
+|---|---|
+| `DubStudio-Setup-x.y.z.exe` (khuyên dùng) | Cài vào máy; **tự báo và tự cài bản mới** |
+| `DubStudio-Portable-x.y.z.zip` | Không muốn / không được cài: giải nén ra thư mục bất kỳ (kể cả USB), bấm `DubStudio.exe`. Dữ liệu lưu trong thư mục `data` cạnh app. Có bản mới app vẫn báo, nhưng phải tải zip mới và giải nén đè (giữ thư mục `data`) |
+
+Cả 2 đều **không cần cài Python** hay gì khác — đã gói sẵn mọi thứ.
+
+Với bộ cài, người nhận làm:
 
 1. Mở link → mục **Assets** → bấm `DubStudio-Setup-x.y.z.exe` để tải.
 2. Chạy file vừa tải. Windows có thể hiện **"Windows protected your PC"** (vì bộ cài chưa ký số) →
@@ -46,8 +55,8 @@ sách thay đổi (lấy từ CHANGELOG):
    git commit -m "Bản 0.3.0"
    git push
    ```
-5. Chạy `build.bat` (10–15 phút) → ra `build\installer\DubStudio-Setup-0.3.0.exe`.
-6. Chạy `publish.bat` → tự tạo bản phát hành `v0.3.0` trên GitHub, upload bộ cài, ghi chú lấy từ CHANGELOG.
+5. Chạy `build.bat` (15–20 phút) → ra `build\installer\DubStudio-Setup-0.3.0.exe` và `DubStudio-Portable-0.3.0.zip`.
+6. Chạy `publish.bat` → tự tạo bản phát hành `v0.3.0` trên GitHub, upload cả 2 file, ghi chú lấy từ CHANGELOG.
 
 Xong. Từ lúc này, ai mở app cũng nhận được thông báo cập nhật; link `releases/latest` cũng tự trỏ sang bản mới.
 

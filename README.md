@@ -3,8 +3,9 @@
 Ứng dụng Windows dịch và lồng tiếng video bằng AI: lấy phụ đề gốc (OCR chữ trên hình hoặc nhận giọng nói) →
 dịch (Gemini / Ollama) → tách nhạc nền (Demucs) → lồng tiếng (Edge TTS) → căn khớp thời gian → xuất video (FFmpeg).
 
-- **Tải về**: [bản mới nhất](https://github.com/Kuddingg/DubStudio/releases/latest) → mục Assets →
-  `DubStudio-Setup-x.y.z.exe`. Hướng dẫn: [HUONG_DAN_SU_DUNG.md](HUONG_DAN_SU_DUNG.md). App tự báo khi có bản mới.
+- **Tải về** (không cần Python): [bản mới nhất](https://github.com/Kuddingg/DubStudio/releases/latest) → mục Assets →
+  `DubStudio-Setup-x.y.z.exe` (bộ cài, tự cập nhật) hoặc `DubStudio-Portable-x.y.z.zip` (giải nén là chạy).
+  Hướng dẫn: [HUONG_DAN_SU_DUNG.md](HUONG_DAN_SU_DUNG.md).
 - **Lịch sử thay đổi**: [CHANGELOG.md](CHANGELOG.md).
 
 ## Tính năng
