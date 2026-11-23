@@ -13,3 +13,6 @@ Mỗi bản mới thêm một mục `## <số phiên bản>` ở TRÊN CÙNG. N�
 - Tab Công cụ với 9 công cụ, có "Tìm giọng giống mẫu"
 - Tự viết tiêu đề, mô tả, hashtag cho video
 - Danh sách video được lưu lại, API key được mã hóa, nút Kiểm tra GPU
+- Sửa phụ đề: dòng thời gian có sóng âm (kéo thả câu), hoàn tác / làm lại, gộp / tách câu, dịch hàng loạt
+- Tự dò vị trí phụ đề, xem thử 10 giây, OCR nhanh hơn ~2 lần, hiện tiến độ tải model lần đầu
+- Tự cập nhật trong app, nhật ký + báo lỗi

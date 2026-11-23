@@ -30,7 +30,13 @@ trước khi xuất cả video.
 
 Nhấp đúp vào video (hoặc bấm **Sửa phụ đề**):
 
+- **Dòng thời gian** (dưới video): sóng âm + các câu dạng khối. Kéo khối để dời câu, kéo mép trái / phải để chỉnh
+  lúc bắt đầu / kết thúc (không chồng được lên câu bên cạnh). Bấm chỗ trống để tua. Lăn chuột: cuộn ngang;
+  **Ctrl + lăn**: phóng to / thu nhỏ.
 - Bấm một câu để sửa thời gian / bản dịch → **Áp dụng**. Bấm **Nghe** để nghe giọng đọc câu đó.
+- **Gộp câu sau** · **Tách câu** (tại đầu phát nếu nằm trong câu, và tại con trỏ trong ô Bản dịch).
+- **Hoàn tác / Làm lại**: Ctrl+Z / Ctrl+Y (mọi thao tác: sửa, kéo, gộp, tách, xóa, dịch). **Ctrl+S** để lưu;
+  đóng cửa sổ khi chưa lưu app sẽ hỏi.
 - Cột **Giọng**: xanh = vừa khung · vàng = app sẽ đọc nhanh hơn một chút · đỏ = quá dài, nên rút gọn câu.
 - **Dịch lại** (một câu), **Dịch câu trống**, **Dịch lại tất cả** (theo kịch bản đang chọn).
 - **Tìm / Thay tất cả**, **Thêm dòng / Xóa dòng**, **Lưu SRT**.

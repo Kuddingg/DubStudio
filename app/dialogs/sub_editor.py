@@ -110,11 +110,14 @@ class SubEditorDialog(QDialog):
         self.job = job
         self.cfg = cfg or {}
         self.setWindowTitle(f"Sửa phụ đề — {job.name}")
-        self.resize(1220, 860)
+        self.resize(1240, 940)
         self.setMinimumSize(980, 700)
         self.srt_vi = job.workdir / "sub_vi.srt"
         self.srt_zh = job.workdir / "sub_zh.srt"
         self._cur_cue = -1
+        self._undo: list = []
+        self._redo: list = []
+        self._dirty = False
         self.cues = self._load()
         self.model = CueModel(self.cues)
         from core import tts
@@ -133,10 +136,15 @@ class SubEditorDialog(QDialog):
         split.setChildrenCollapsible(False)
         split.addWidget(self._player())
         split.addWidget(self._editor())
-        split.setSizes([230, 650])
+        split.setSizes([330, 600])
         root.addWidget(split, 1)
         if self.cues:
             self.table.selectRow(0)
+        from PySide6.QtGui import QKeySequence, QShortcut
+        for seq, fn in ((QKeySequence.Undo, self.undo), ("Ctrl+Y", self.redo), (QKeySequence.Redo, self.redo),
+                        (QKeySequence.Save, lambda: self._save())):
+            QShortcut(QKeySequence(seq), self, activated=fn)
+        self._sync_undo_btns()
 
     # ---------------------------------------------------------------- data
     def _load(self) -> list[Cue]:
@@ -178,6 +186,13 @@ class SubEditorDialog(QDialog):
         self.btn_tr_all = button("Dịch lại tất cả", "refresh", "tool",
                                  "Dịch lại toàn bộ theo kịch bản đang chọn (ghi đè cả câu đã sửa tay)")
         self.btn_tr_all.clicked.connect(lambda: self._translate_many(only_empty=False))
+        self.btn_undo = button("", "undo", "tool", "Hoàn tác (Ctrl+Z)")
+        self.btn_undo.clicked.connect(self.undo)
+        self.btn_redo = button("", "redo", "tool", "Làm lại (Ctrl+Y)")
+        self.btn_redo.clicked.connect(self.redo)
+        h.addWidget(self.btn_undo)
+        h.addWidget(self.btn_redo)
+        h.addSpacing(8)
         h.addWidget(self.btn_tr_empty)
         h.addWidget(self.btn_tr_all)
         h.addSpacing(8)
@@ -208,6 +223,7 @@ class SubEditorDialog(QDialog):
 
         def done(vis: list):
             r = self._row()                                # nhớ dòng đang chọn trước khi làm mới bảng
+            self._snapshot()
             for i, v in zip(idx, vis):
                 if v:
                     self.cues[i].dst = v
@@ -293,7 +309,124 @@ class SubEditorDialog(QDialog):
         ctl.addWidget(vol_ic)
         ctl.addWidget(vol)
         c.add(ctl)
+
+        # dòng thời gian: sóng âm + khối câu kéo thả
+        from ..widgets.timeline import Timeline, waveform_peaks
+        self.timeline = Timeline()
+        self.timeline.set_cues(self.cues)
+        self.timeline.setToolTip("Kéo khối để dời câu · kéo mép để chỉnh bắt đầu / kết thúc · "
+                                 "bấm chỗ trống để tua · lăn chuột: cuộn · Ctrl + lăn: phóng to / thu nhỏ")
+        self.timeline.seek.connect(self.player.setPosition)
+        self.timeline.cueSelected.connect(self.table_select)
+        self.timeline.editStarted.connect(self._snapshot)
+        self.timeline.cueChanged.connect(self._timeline_changed)
+        self.player.durationChanged.connect(self.timeline.set_duration)
+        c.add(self.timeline)
+        if Path(self.job.path).exists():
+            from core.tasks import run_async
+            run_async(waveform_peaks, self.job.path, on_done=self.timeline.set_peaks)
         return c
+
+    def table_select(self, i: int):
+        if 0 <= i < len(self.cues):
+            self.table.selectRow(i)
+
+    def _timeline_changed(self, i: int):
+        self.model.refresh_row(i)
+        if self._row() == i:
+            self.ed_start.setText(ms_to_tc(self.cues[i].start))
+            self.ed_end.setText(ms_to_tc(self.cues[i].end))
+        self._cur_cue = -2
+        self._dirty = True
+
+    # ---------------------------------------------------------------- hoàn tác / làm lại
+    def _state(self):
+        return [(c.start, c.end, c.src, c.dst) for c in self.cues]
+
+    def _snapshot(self):
+        """Lưu trạng thái TRƯỚC mỗi thay đổi (để Ctrl+Z quay lại)."""
+        self._undo.append(self._state())
+        del self._undo[:-100]
+        self._redo.clear()
+        self._dirty = True
+        self._sync_undo_btns()
+
+    def _restore(self, st):
+        r = self._row()
+        self.cues[:] = [Cue(*t) for t in st]                # giữ nguyên danh sách (bảng + dòng thời gian dùng chung)
+        self.model.reset()
+        self.count.setText(f"{len(self.cues)} câu")
+        self._cur_cue = -2
+        if self.cues:
+            self.table.selectRow(max(0, min(r, len(self.cues) - 1)))
+        self.timeline.update()
+        self._sync_undo_btns()
+
+    def undo(self):
+        if not self._undo:
+            toast(self, "Không còn gì để hoàn tác", "info")
+            return
+        self._redo.append(self._state())
+        self._restore(self._undo.pop())
+
+    def redo(self):
+        if not self._redo:
+            toast(self, "Không còn gì để làm lại", "info")
+            return
+        self._undo.append(self._state())
+        self._restore(self._redo.pop())
+
+    def _sync_undo_btns(self):
+        if hasattr(self, "btn_undo"):
+            self.btn_undo.setEnabled(bool(self._undo))
+            self.btn_redo.setEnabled(bool(self._redo))
+
+    # ---------------------------------------------------------------- gộp / tách câu
+    def _merge_next(self):
+        r = self._row()
+        if r < 0 or r + 1 >= len(self.cues):
+            toast(self, "Chọn một câu có câu kế tiếp để gộp", "warn")
+            return
+        self._snapshot()
+        a, b = self.cues[r], self.cues.pop(r + 1)
+        cjk = lambda s: any("一" <= ch <= "鿿" for ch in s)
+        a.end = b.end
+        a.src = (a.src + ("" if cjk(a.src) and cjk(b.src) else " ") + b.src).strip()
+        a.dst = f"{a.dst} {b.dst}".strip()
+        self.model.reset()
+        self.count.setText(f"{len(self.cues)} câu")
+        self.table.selectRow(r)
+        self.timeline.update()
+        toast(self, f"Đã gộp câu #{r + 1} với câu sau", "ok")
+
+    def _split(self):
+        r = self._row()
+        if r < 0:
+            return
+        c = self.cues[r]
+        if c.end - c.start < 400:
+            toast(self, "Câu quá ngắn để tách", "warn")
+            return
+        pos = self.player.position()
+        t = pos if c.start + 200 < pos < c.end - 200 else (c.start + c.end) // 2   # tách tại đầu phát nếu nằm trong câu
+        text = self.ed_dst.toPlainText().strip() or c.dst
+        cur = self.ed_dst.textCursor().position()
+        if 0 < cur < len(text):
+            k = cur                                                 # tách tại con trỏ trong ô Bản dịch
+        else:
+            spaces = [i for i, ch in enumerate(text) if ch == " "]
+            k = min(spaces, key=lambda i: abs(i - len(text) / 2)) if spaces else len(text) // 2
+        frac = (t - c.start) / (c.end - c.start)
+        ks = int(round(len(c.src) * frac))
+        self._snapshot()
+        new = Cue(t, c.end, c.src[ks:].strip(), text[k:].strip())
+        c.end, c.src, c.dst = t, c.src[:ks].strip(), text[:k].strip()
+        self.cues.insert(r + 1, new)
+        self.model.reset()
+        self.count.setText(f"{len(self.cues)} câu")
+        self.table.selectRow(r)
+        self.timeline.update()
+        toast(self, f"Đã tách câu #{r + 1} tại {ms_to_tc(t)}", "ok")
 
     def _editor(self):
         c = Card(padding=12)
@@ -378,6 +511,15 @@ class SubEditorDialog(QDialog):
         low.addWidget(add)
         low.addWidget(rm)
         btns.addLayout(low)
+        mg = button("Gộp câu sau", "merge", None, "Gộp câu đang chọn với câu kế tiếp")
+        mg.clicked.connect(self._merge_next)
+        sp = button("Tách câu", "split", None, "Tách tại đầu phát (nếu nằm trong câu) và tại con trỏ trong ô Bản dịch")
+        sp.clicked.connect(self._split)
+        ms_row = QHBoxLayout()
+        ms_row.setSpacing(6)
+        ms_row.addWidget(mg)
+        ms_row.addWidget(sp)
+        btns.addLayout(ms_row)
         g.addLayout(btns, 0, 6, 2, 1)
         c.add(g)
         return c
@@ -397,6 +539,7 @@ class SubEditorDialog(QDialog):
         if not self.seek.isSliderDown():
             self.seek.setValue(ms)
         self.time_lbl.setText(ms_to_tc(ms))
+        self.timeline.set_position(ms, follow=self.player.playbackState() == QMediaPlayer.PlayingState)
         idx = next((i for i, c in enumerate(self.cues) if c.start <= ms <= c.end), -1)
         if idx != self._cur_cue:
             self._cur_cue = idx
@@ -416,6 +559,8 @@ class SubEditorDialog(QDialog):
 
     def _row_changed(self, cur, _prev):
         r = cur.row()
+        if hasattr(self, "timeline"):
+            self.timeline.set_selected(r)
         if 0 <= r < len(self.cues):
             c = self.cues[r]
             self.ed_start.setText(ms_to_tc(c.start))
@@ -436,8 +581,13 @@ class SubEditorDialog(QDialog):
             toast(self, "Thời gian kết thúc phải lớn hơn bắt đầu", "err")
             return
         c = self.cues[r]
-        c.start, c.end, c.dst = s, e, self.ed_dst.toPlainText().strip()
+        new = (s, e, self.ed_dst.toPlainText().strip())
+        if (c.start, c.end, c.dst) == new:
+            return
+        self._snapshot()
+        c.start, c.end, c.dst = new
         self.model.refresh_row(r)
+        self.timeline.update()
         self._cur_cue = -2
         toast(self, f"Đã cập nhật câu #{r + 1}", "ok")
 
@@ -494,6 +644,7 @@ class SubEditorDialog(QDialog):
         def done(text: str, row=r):
             self.btn_ai.setEnabled(True)
             self.btn_ai.setText("Dịch lại")
+            self._snapshot()
             self.cues[row].dst = text
             self.model.refresh_row(row)
             if self._row() == row:
@@ -513,21 +664,25 @@ class SubEditorDialog(QDialog):
         r = self._row()
         prev = self.cues[r] if r >= 0 else None
         start = prev.end + 100 if prev else 0
+        self._snapshot()
         self.cues.insert(r + 1, Cue(start, start + 2000, "", ""))
         self.model.reset()
         self.table.selectRow(r + 1)
         self.count.setText(f"{len(self.cues)} câu")
+        self.timeline.update()
         self.ed_dst.setFocus()
 
     def _del_row(self):
         r = self._row()
         if r < 0:
             return
+        self._snapshot()
         self.cues.pop(r)
         self.model.reset()
         if self.cues:
             self.table.selectRow(min(r, len(self.cues) - 1))
         self.count.setText(f"{len(self.cues)} câu")
+        self.timeline.update()
 
     def _find_next(self):
         q = self.find.text().strip().lower()
@@ -547,12 +702,17 @@ class SubEditorDialog(QDialog):
         q, rep = self.find.text(), self.repl.text()
         if not q:
             return
+        if not any(q in c.dst for c in self.cues):
+            toast(self, "Không có chỗ nào để thay", "warn")
+            return
+        self._snapshot()
         n = 0
         for c in self.cues:
             if q in c.dst:
                 n += c.dst.count(q)
                 c.dst = c.dst.replace(q, rep)
         self.model.reset()
+        self.timeline.update()
         toast(self, f"Đã thay {n} chỗ", "ok" if n else "warn")
 
     def _open_srt(self):
@@ -564,8 +724,10 @@ class SubEditorDialog(QDialog):
         except (OSError, ValueError) as ex:
             toast(self, f"Không đọc được file: {ex}", "err")
             return
-        self.cues = cues
-        self.model.reset(cues)
+        self._snapshot()
+        self.cues[:] = cues
+        self.model.reset()
+        self.timeline.update()
         self.count.setText(f"{len(cues)} câu")
         if cues:
             self.table.selectRow(0)
@@ -573,6 +735,7 @@ class SubEditorDialog(QDialog):
     def _save(self, silent: bool = False):
         self.srt_vi.write_text(write_srt(self.cues, "dst"), encoding="utf-8")
         self.srt_zh.write_text(write_srt(self.cues, "src"), encoding="utf-8")
+        self._dirty = False
         if not silent:
             toast(self, "Đã lưu phụ đề", "ok")
 
@@ -582,6 +745,14 @@ class SubEditorDialog(QDialog):
         dark_titlebar(self)
 
     def done(self, r):
+        if self._dirty:
+            from PySide6.QtWidgets import QMessageBox
+            ans = QMessageBox.question(self, "Chưa lưu", "Phụ đề có thay đổi chưa lưu. Lưu trước khi đóng?",
+                                       QMessageBox.Save | QMessageBox.Discard | QMessageBox.Cancel)
+            if ans == QMessageBox.Cancel:
+                return
+            if ans == QMessageBox.Save:
+                self._save(silent=True)
         self.player.stop()
         self.voice_player.stop()
         super().done(r)
