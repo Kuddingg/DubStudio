@@ -56,6 +56,12 @@ def main():
         return
 
     gh = shutil.which("gh")
+    if not gh:                                   # vừa cài bằng winget, cửa sổ cmd cũ chưa nhận PATH mới
+        import glob
+        import os
+        found = glob.glob(os.path.expandvars(r"%LOCALAPPDATA%\Microsoft\WinGet\Packages\GitHub.cli_*\bin\gh.exe")) + \
+            glob.glob(os.path.expandvars(r"%ProgramFiles%\GitHub CLI\gh.exe"))
+        gh = found[0] if found else None
     if not gh:
         fail("Chưa có GitHub CLI. Cài: winget install GitHub.cli → mở cmd mới → gh auth login → chạy lại publish.bat")
     if subprocess.run([gh, "auth", "status"], capture_output=True).returncode != 0:

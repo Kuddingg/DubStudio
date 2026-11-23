@@ -1,42 +1,63 @@
-# Hướng dẫn phát hành bản cập nhật
+# Chia sẻ app & phát hành bản cập nhật
 
-## Thiết lập một lần
+Repo: **https://github.com/Kuddingg/DubStudio** (Public) · Nguồn cập nhật trong app: `github:Kuddingg/DubStudio`
 
-1. Tạo repo trên GitHub (vd `DubStudio`), để **Public** — repo Private thì người dùng không tải được bản cập nhật.
-   Chỉ cần đăng bộ cài lên mục Releases, không bắt buộc đưa mã nguồn lên.
-2. Mở `core/version.py`, sửa: `UPDATE_SOURCE = "github:TEN_TAI_KHOAN/DubStudio"`
-3. Cài GitHub CLI và đăng nhập (mở cmd):
-   ```
-   winget install GitHub.cli
-   gh auth login
-   ```
-   (chọn GitHub.com → HTTPS → Login with a web browser)
-4. Build và phát hành bản đầu tiên như các bước dưới. Bộ cài từ bản này trở đi mới có tính năng tự cập nhật.
+## 1. Đưa app cho người khác tải và dùng
 
-## Mỗi lần ra bản mới
+Gửi họ đường link này (luôn trỏ tới bản mới nhất):
 
-1. Sửa code, chạy thử bằng `run.bat`.
-2. Tăng số trong `core/version.py`: `VERSION = "0.3.0"`
-3. Thêm lên **đầu** `CHANGELOG.md`:
+**https://github.com/Kuddingg/DubStudio/releases/latest**
+
+Người nhận làm:
+
+1. Mở link → mục **Assets** → bấm `DubStudio-Setup-x.y.z.exe` để tải.
+2. Chạy file vừa tải. Windows có thể hiện **"Windows protected your PC"** (vì bộ cài chưa ký số) →
+   bấm **More info** → **Run anyway**.
+3. Bấm Next đến khi xong (không cần quyền quản trị), mở DubStudio từ Start Menu / Desktop.
+4. Vào tab **Hệ thống** dán API key Gemini của họ (miễn phí ở aistudio.google.com), xem thêm `HUONG_DAN_SU_DUNG.md`.
+
+Máy người dùng cần: Windows 10/11 64-bit, Internet (dịch + giọng đọc), RAM 8 GB trở lên. Có card NVIDIA thì nhanh hơn
+(bấm Hệ thống → Kiểm tra GPU → Áp dụng gợi ý).
+
+## 2. Người dùng tự biết khi có bản mới
+
+Không cần làm gì thêm: mỗi lần mở app, app tự kiểm tra GitHub. Có bản mới hơn → hiện cửa sổ **"Có bản mới"** kèm danh
+sách thay đổi (lấy từ CHANGELOG):
+
+- **Cập nhật ngay** → app tự tải, kiểm tra mã SHA-256, tự cài đè rồi tự mở lại. Dữ liệu (API key, cấu hình, danh sách video) giữ nguyên.
+- **Để sau** → lần mở app sau sẽ hỏi lại · **Bỏ qua bản này** → không hỏi lại bản đó nữa.
+- Mở lần đầu sau khi cập nhật → hiện **"Có gì mới"**.
+- Tự kiểm tra bất cứ lúc nào: tab **Hệ thống → Cập nhật phần mềm → Kiểm tra cập nhật**.
+
+## 3. Bạn ra bản mới (mỗi lần cập nhật)
+
+1. Sửa code, chạy thử bằng `run.bat`; chạy `run_tests.bat all` để chắc không hỏng gì.
+2. Tăng số phiên bản trong `core/version.py`, vd `VERSION = "0.3.0"`.
+3. Thêm lên **đầu** danh sách trong `CHANGELOG.md` (người dùng sẽ đọc phần này):
    ```
    ## 0.3.0
 
-   - Điều mới 1
-   - Sửa lỗi 2
+   - Thêm …
+   - Sửa lỗi …
    ```
-4. Chạy `build.bat` (10–15 phút) → ra `build/installer/DubStudio-Setup-0.3.0.exe`
-5. Chạy `publish.bat` → tự tạo release `v0.3.0` trên GitHub và upload bộ cài.
-6. Lưu vào Git: `git add -A` rồi `git commit -m "Bản 0.3.0"`
+4. Lưu vào Git và đẩy code lên:
+   ```
+   git add -A
+   git commit -m "Bản 0.3.0"
+   git push
+   ```
+5. Chạy `build.bat` (10–15 phút) → ra `build\installer\DubStudio-Setup-0.3.0.exe`.
+6. Chạy `publish.bat` → tự tạo bản phát hành `v0.3.0` trên GitHub, upload bộ cài, ghi chú lấy từ CHANGELOG.
 
-## Phía người dùng
+Xong. Từ lúc này, ai mở app cũng nhận được thông báo cập nhật; link `releases/latest` cũng tự trỏ sang bản mới.
 
-- Mở app → vài giây sau tự kiểm tra; có bản mới thì hiện cửa sổ kèm danh sách thay đổi:
-  **Cập nhật ngay** (tự tải, kiểm tra SHA-256, cài đè, mở lại app) · **Để sau** · **Bỏ qua bản này**.
-- Lần đầu mở sau khi cập nhật → hiện "Có gì mới".
-- Tự kiểm tra bất cứ lúc nào: tab **Hệ thống → Cập nhật phần mềm → Kiểm tra cập nhật**.
-- Dữ liệu (cấu hình, API key, danh sách video, model AI) nằm ở `%LOCALAPPDATA%\DubStudio` → giữ nguyên khi cập nhật.
+**Lưu ý**
+- Số phiên bản phải **tăng** (0.2.0 → 0.2.1 / 0.3.0); app chỉ báo khi bản trên GitHub mới hơn bản đang dùng.
+- Không xóa / đổi tên repo, không chuyển sang Private, nếu không app của người dùng sẽ không tìm được bản mới.
+- Muốn bộ cài chạy GPU NVIDIA: chạy `build.bat` trên máy có card NVIDIA (sau khi chạy `run.bat` ở máy đó một lần).
+- `publish.bat` cần GitHub CLI đã đăng nhập (`gh auth status`). Máy mới: `winget install GitHub.cli` rồi `gh auth login`.
 
-## Không dùng GitHub?
+## 4. Gỡ một bản phát hành lỗi
 
-Đặt `UPDATE_SOURCE = "https://…/latest.json"` (link tải trực tiếp). `publish.bat` sẽ tạo `build/installer/latest.json`;
-bạn upload bộ cài lên chỗ bất kỳ, dán link tải trực tiếp vào trường `url` trong latest.json rồi upload latest.json.
+Nếu lỡ phát hành bản lỗi: sửa lỗi, tăng số phiên bản (vd 0.3.1), build và publish lại — người dùng sẽ được báo bản 0.3.1.
+Có thể xóa bản lỗi ở https://github.com/Kuddingg/DubStudio/releases (bấm vào bản đó → biểu tượng thùng rác).

@@ -3,7 +3,8 @@
 Ứng dụng Windows dịch và lồng tiếng video bằng AI: lấy phụ đề gốc (OCR chữ trên hình hoặc nhận giọng nói) →
 dịch (Gemini / Ollama) → tách nhạc nền (Demucs) → lồng tiếng (Edge TTS) → căn khớp thời gian → xuất video (FFmpeg).
 
-- **Người dùng**: tải bộ cài ở mục [Releases](../../releases), xem [HUONG_DAN_SU_DUNG.md](HUONG_DAN_SU_DUNG.md).
+- **Tải về**: [bản mới nhất](https://github.com/Kuddingg/DubStudio/releases/latest) → mục Assets →
+  `DubStudio-Setup-x.y.z.exe`. Hướng dẫn: [HUONG_DAN_SU_DUNG.md](HUONG_DAN_SU_DUNG.md). App tự báo khi có bản mới.
 - **Lịch sử thay đổi**: [CHANGELOG.md](CHANGELOG.md).
 
 ## Tính năng
@@ -42,7 +43,7 @@ build.bat            # PyInstaller + FFmpeg + Inno Setup → build/installer/Dub
 publish.bat          # đăng bản mới lên GitHub Releases (app của người dùng tự nhận cập nhật)
 ```
 
-Số phiên bản nằm duy nhất ở `core/version.py`. Quy trình chi tiết: [HUONG_DAN_CAP_NHAT.md](HUONG_DAN_CAP_NHAT.md).
+Số phiên bản nằm duy nhất ở `core/version.py`. Chia sẻ app & quy trình ra bản mới: [HUONG_DAN_CAP_NHAT.md](HUONG_DAN_CAP_NHAT.md).
 Build trên máy có GPU NVIDIA để bộ cài chạy được GPU.
 
 ## Cấu trúc

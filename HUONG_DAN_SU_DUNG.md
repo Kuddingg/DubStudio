@@ -5,7 +5,9 @@ lấy phụ đề gốc → dịch → tách nhạc nền → đọc lồng ti�
 
 ## 1. Cài đặt lần đầu
 
-1. Chạy `DubStudio-Setup-x.y.z.exe`, bấm Next đến khi xong (không cần quyền quản trị).
+1. Tải bộ cài ở https://github.com/Kuddingg/DubStudio/releases/latest (mục Assets), chạy `DubStudio-Setup-x.y.z.exe`.
+   Nếu Windows báo "Windows protected your PC" → **More info** → **Run anyway**. Bấm Next đến khi xong
+   (không cần quyền quản trị).
 2. Mở DubStudio, vào tab **Hệ thống**:
    - **API key Gemini**: bấm *Hiện / sửa*, dán key (lấy miễn phí ở aistudio.google.com → *Get API key*). Có thể nhập nhiều key, mỗi dòng một key; hết quota app tự đổi key.
    - Máy có card NVIDIA: bấm **Kiểm tra GPU** → **Áp dụng gợi ý** để chạy nhanh hơn.
