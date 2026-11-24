@@ -90,6 +90,8 @@ def main():
         fail("Tạo release thất bại (xem thông báo ở trên).")
     print(f"\n✓ Đã phát hành {VERSION}. Người dùng mở app sẽ thấy thông báo cập nhật.")
     print(f"  Trang tải: https://github.com/{repo}/releases/latest")
+    from clean import clean                         # bộ cài đã nằm trên GitHub → xóa bản trên máy cho nhẹ
+    clean(everything=True)
 
 
 if __name__ == "__main__":

@@ -58,6 +58,10 @@ sách thay đổi (lấy từ CHANGELOG):
 5. Chạy `build.bat` (15–20 phút) → ra `build\installer\DubStudio-Setup-0.3.0.exe` và `DubStudio-Portable-0.3.0.zip`.
 6. Chạy `publish.bat` → tự tạo bản phát hành `v0.3.0` trên GitHub, upload cả 2 file, ghi chú lấy từ CHANGELOG.
 
+File thừa được **tự dọn**: `build.bat` xóa file tạm sau khi đóng gói (chỉ giữ bộ cài + zip), `publish.bat` xóa
+luôn thư mục `build` sau khi đăng xong. Muốn dọn tay: `.venv\Scripts\python.exe packaging\clean.py` (thêm `--all`
+để xóa cả bộ cài). Không bao giờ đụng tới `data` (API key, cấu hình, model) và `.venv`.
+
 Xong. Từ lúc này, ai mở app cũng nhận được thông báo cập nhật; link `releases/latest` cũng tự trỏ sang bản mới.
 
 **Lưu ý**

@@ -10,6 +10,8 @@ if not exist .venv\Scripts\python.exe (
     exit /b 1
 )
 .venv\Scripts\python.exe -m pip install -q pyinstaller
+REM Xoa bo cai / zip cua lan build truoc (da dang len GitHub thi khong can giu)
+if exist build\installer rmdir /s /q build\installer
 echo [1/3] Dong goi bang PyInstaller (mat vai phut)...
 .venv\Scripts\pyinstaller.exe packaging\dubstudio.spec --noconfirm --distpath build\dist --workpath build\work --log-level WARN
 if errorlevel 1 (
@@ -55,6 +57,8 @@ if not "%ZIPERR%"=="0" (
     pause
     exit /b 1
 )
+echo Don file tam (build\work, build\dist, __pycache__)...
+.venv\Scripts\python.exe -X utf8 packaging\clean.py
 echo.
 echo Xong! Bo cai va ban portable nam trong: build\installer\
 explorer build\installer
